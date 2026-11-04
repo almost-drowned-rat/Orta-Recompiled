@@ -1,0 +1,15 @@
+# pandoras_box.txt - Orta (PAL): boot -> title -> START -> main menu -> PANDORAS BÜCHSE -> look around.
+# Syntax (toolkit src/input/xinput_script.c): <ms>:<button>[+<button>...][:<hold ms>]; times from the first pad report.
+# Title "START DRÜCKEN" from ~30 s; ONE START only: a second START in the main menu confirms NEUES SPIEL (runs
+# 20261101_201756_pb_35 and _203124_pb_36). D-pad works; WEITER is skipped without a save, so ONE down reaches
+# PANDORAS BÜCHSE (two downs = ÜBUNG, run 20261101_203*_pb_37: tutorial GLEITEN played). A opens it, then down / A
+# through its entries to find the Saturn game (PD1.xbe -> "not planned" notice, orta_launch_saturn_bonus).
+39000:start:200
+45000:down:200
+50000:a:200
+57000:down:200
+60000:a:200
+66000:down:200
+69000:a:200
+75000:down:200
+78000:a:200

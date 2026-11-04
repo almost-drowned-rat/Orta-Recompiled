@@ -1,0 +1,27 @@
+# options_gamma.txt - Orta (PAL) RECOMP OPTIONS > BRIGHTNESS AND CONTRAST, BRIGHTNESS 0 -> +5 (views layout, the
+# default): boot -> title -> START -> main menu -> OPTIONEN, TOP down x3 (RECOMP OPTIONS) -> A, down x8 (BRIGHTNESS AND
+# CONTRAST) -> A, then right x5 at 88-92 s and hold. The gamma ramp acts in the present pass (toolkit
+# nv2a_vk_set_gamma_ramp), so check it on a desktop / window capture before ~86 s and after ~94 s, not on GL dumps.
+39000:start:200
+45000:down:200
+47000:down:200
+49000:down:200
+52000:a:200
+56000:down:200
+58000:down:200
+60000:down:200
+63000:a:200
+66000:down:200
+68000:down:200
+70000:down:200
+72000:down:200
+74000:down:200
+76000:down:200
+78000:down:200
+80000:down:200
+83000:a:200
+88000:right:200
+89000:right:200
+90000:right:200
+91000:right:200
+92000:right:200

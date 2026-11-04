@@ -1,0 +1,18 @@
+# display_modes.txt - Orta (PAL) RECOMP OPTIONS > DISPLAY MODE through every mode (maintainer 2026-11-04: windowed,
+# borderless and fullscreen must work from the menu): boot -> title -> START -> main menu -> OPTIONEN -> RECOMP
+# OPTIONS (cursor on DISPLAY MODE), then left (BORDERLESS), left (FULLSCREEN), right (BORDERLESS), right (WINDOWED),
+# 6 s each. Run WITHOUT RECOMP_DISPLAY_MODE (it wins over the menu) and with ORTA_START_WINDOWED=1 (start windowed,
+# as tools\play.ps1); a watcher logs the window rectangle once a second.
+39000:start:200
+45000:down:200
+47000:down:200
+49000:down:200
+52000:a:200
+56000:down:200
+58000:down:200
+60000:down:200
+63000:a:200
+67000:left:200
+73000:left:200
+79000:right:200
+85000:right:200

@@ -1,0 +1,147 @@
+# Panzer Dragoon Orta, Europe (PAL) - variant part of config/game.toml (toolkit tools/gameconfig.py).
+# default.xbe SHA-1 57213FF35A19807DEF664F9018CC2923815DFA1F, SHA-256 in game.toml.
+#
+# Seeds - only from this port's own analysis of the PAL default.xbe and its own runs (2026-11-04). The 678 seeds
+# carried over from another project's US list were removed (maintainer: that list has no declared licence -
+# "unclear = reference only"). Without them 247 table-reached entries merged into their neighbours and the game
+# crashed at boot; the scan below finds 286 entries from the binary alone (lift 2026-11-04 lift_ownseeds3: 18,715
+# functions, 0 failed; regress, the light-dragon replay and level 2 run clean).
+#   A  code immediates: an imm32 of `mov r/m32, imm32` / `mov r32, imm32` / `push imm32` in a code section that
+#      points at a 16-byte aligned address in a code section, preceded by padding (90/CC) or a ret, whose first
+#      byte is not padding or zero, and that is not a lifted function yet (callbacks and vtables built in code).
+#   B  .text addresses on a 16-byte boundary right after a ret / ret n / jmp followed by padding (the compiler's
+#      function alignment), not a lifted function yet, first byte not padding or zero (beyond A).
+#   C  a pointer in .rdata to such an entry (beyond A and B).
+#   E  the target of a direct jmp/call rel32 inside a lifted function that lies outside it and is no function yet
+#      (0x104B00 from 0x295C0, 0x3034F4 from the XPP thunk 0x3041CF).
+#   Excluded: a B candidate whose first 12 instructions hold one a compiler never emits at a function start
+#   (iretd, int n, ljmp/lcall, retf, daa/das, arpl, bound, in/out/ins, hlt, cli/sti, push cs, ...) or that decodes to
+#   fewer than 3 instructions - data after a function (15 removed, run 20261104_171846: data lifted as code).
+#   Excluded: any candidate that is an entry of an inline switch table in .text (a run of >= 3 consecutive .text
+#   pointers) - those are case labels: 0x290560 and 0x2906F0 (memcpy's tail table at 0x2906D8) split memcpy and
+#   made its indirect jmp an unresolvable ICALL (run 20261104_170959).
+#   observed: ICALL targets reached in this port's runs (ICALL feedback); every other target our runs reached
+#      (1,891 in 351 runs) is a lifted function already or in A.
+schema_version = 1
+
+function = [
+    # observed (run m1_first 2026-11-01): ICALL target in XPP, follows 0x003040E3 with no padding.
+    { at = 0x00304145, observed = true },
+    # Sofdec MPEG VLC decoder 0x25E9A0: second VLC callback, only stored as an immediate ([dec+0x12AC] at
+    # 0x252638); ICALL 'Failed to resolve' in run 20261101_160039_m2_vlc2. The 29 seeds for the tail-call jump
+    # table 0x261F98 are gone - the lifter seeds a gap-hosted table itself since toolkit option-c 6f434ca. The XPP
+    # USB completion callback 0x003046E8 is found by the lifter itself since toolkit 69274f3.
+    { at = 0x00262430, observed = true },
+# A
+    { at = 0x00011C50 }, { at = 0x00019B50 }, { at = 0x0001E0C0 }, { at = 0x00024910 },
+    { at = 0x00028740 }, { at = 0x000384C0 }, { at = 0x0003A360 }, { at = 0x0003E3F0 },
+    { at = 0x00050070 }, { at = 0x00075710 }, { at = 0x00083F00 }, { at = 0x00083F10 },
+    { at = 0x00083F20 }, { at = 0x00087FF0 }, { at = 0x00088B50 }, { at = 0x00088D20 },
+    { at = 0x00088FB0 }, { at = 0x000910A0 }, { at = 0x000918D0 }, { at = 0x00092050 },
+    { at = 0x00092730 }, { at = 0x00093420 }, { at = 0x00093440 }, { at = 0x00094260 },
+    { at = 0x00094DE0 }, { at = 0x00095AE0 }, { at = 0x000960E0 }, { at = 0x00096600 },
+    { at = 0x00097350 }, { at = 0x00097360 }, { at = 0x00097370 }, { at = 0x000973E0 },
+    { at = 0x00097740 }, { at = 0x0009B6F0 }, { at = 0x000A0E50 }, { at = 0x000A2710 },
+    { at = 0x000A28A0 }, { at = 0x000A59C0 }, { at = 0x000A5A00 }, { at = 0x000A7060 },
+    { at = 0x000A7970 }, { at = 0x000A87F0 }, { at = 0x000A9EC0 }, { at = 0x000AA3D0 },
+    { at = 0x000C2910 }, { at = 0x000C2920 }, { at = 0x000C2DF0 }, { at = 0x000C4700 },
+    { at = 0x000C6970 }, { at = 0x000C91F0 }, { at = 0x000C92D0 }, { at = 0x000CA470 },
+    { at = 0x000CE6D0 }, { at = 0x000CE6E0 }, { at = 0x000CF930 }, { at = 0x000D0060 },
+    { at = 0x000D36E0 }, { at = 0x000D4F00 }, { at = 0x000D5FF0 }, { at = 0x000D6980 },
+    { at = 0x000D78E0 }, { at = 0x000D9DB0 }, { at = 0x000DF3C0 }, { at = 0x000DF3D0 },
+    { at = 0x000E1C70 }, { at = 0x000E2230 }, { at = 0x000E3EA0 }, { at = 0x000E5580 },
+    { at = 0x000E67E0 }, { at = 0x000E6D70 }, { at = 0x000E73A0 }, { at = 0x000EB660 },
+    { at = 0x000EB770 }, { at = 0x000EBDF0 }, { at = 0x000F6000 }, { at = 0x000F8230 },
+    { at = 0x000F8240 }, { at = 0x000F8250 }, { at = 0x000F8260 }, { at = 0x000F8270 },
+    { at = 0x000FB4E0 }, { at = 0x000FF2F0 }, { at = 0x000FF4B0 }, { at = 0x001019A0 },
+    { at = 0x001022B0 }, { at = 0x001022C0 }, { at = 0x00102CE0 }, { at = 0x001030D0 },
+    { at = 0x001031A0 }, { at = 0x001035A0 }, { at = 0x00103F60 }, { at = 0x00105900 },
+    { at = 0x00106820 }, { at = 0x00106FE0 }, { at = 0x00107FE0 }, { at = 0x0010C370 },
+    { at = 0x0010D350 }, { at = 0x0010E710 }, { at = 0x0010E970 }, { at = 0x0010EC00 },
+    { at = 0x0010ED70 }, { at = 0x0010EEB0 }, { at = 0x00118AE0 }, { at = 0x00118C20 },
+    { at = 0x0011A280 }, { at = 0x0011A7E0 }, { at = 0x0011B240 }, { at = 0x0011C880 },
+    { at = 0x0011EFA0 }, { at = 0x0011F240 }, { at = 0x00122820 }, { at = 0x00122A40 },
+    { at = 0x001234F0 }, { at = 0x001235B0 }, { at = 0x00128280 }, { at = 0x00130DA0 },
+    { at = 0x00130E80 }, { at = 0x00131FD0 }, { at = 0x00133FC0 }, { at = 0x00134FB0 },
+    { at = 0x00138550 }, { at = 0x001394F0 }, { at = 0x0013A220 }, { at = 0x00142300 },
+    { at = 0x00143580 }, { at = 0x00146C20 }, { at = 0x001474E0 }, { at = 0x0014B0E0 },
+    { at = 0x0014D6A0 }, { at = 0x00152980 }, { at = 0x00161110 }, { at = 0x00162190 },
+    { at = 0x00166700 }, { at = 0x0016B560 }, { at = 0x0016BA60 }, { at = 0x0016BB40 },
+    { at = 0x001722B0 }, { at = 0x00176FD0 }, { at = 0x001776C0 }, { at = 0x00178CB0 },
+    { at = 0x00179640 }, { at = 0x0017AEA0 }, { at = 0x0017CAE0 }, { at = 0x0017CAF0 },
+    { at = 0x001844A0 }, { at = 0x0018E3E0 }, { at = 0x0018E3F0 }, { at = 0x0018FAC0 },
+    { at = 0x00191B20 }, { at = 0x001AD480 }, { at = 0x001C37C0 }, { at = 0x001C95C0 },
+    { at = 0x001CF080 }, { at = 0x001E7570 }, { at = 0x001E75A0 }, { at = 0x001E89F0 },
+    { at = 0x001E8B20 }, { at = 0x001ECC10 }, { at = 0x001ECC20 }, { at = 0x001EDCB0 },
+    { at = 0x001EE9B0 }, { at = 0x001F6120 }, { at = 0x001FB780 }, { at = 0x001FE510 },
+    { at = 0x00200180 }, { at = 0x00201B20 }, { at = 0x002030E0 }, { at = 0x00206440 },
+    { at = 0x00206E80 }, { at = 0x00216990 }, { at = 0x00219DA0 }, { at = 0x0022CFA0 },
+    { at = 0x00234100 }, { at = 0x00234930 }, { at = 0x00234970 }, { at = 0x002349E0 },
+    { at = 0x00237BD0 }, { at = 0x0023BC30 }, { at = 0x0023C820 }, { at = 0x0023E6A0 },
+    { at = 0x00244DD0 }, { at = 0x00244DF0 }, { at = 0x00244E10 }, { at = 0x00244E30 },
+    { at = 0x00244F60 }, { at = 0x00246B90 }, { at = 0x00248E10 }, { at = 0x0025AF40 },
+    { at = 0x0029E2D0 }, { at = 0x0029FD40 }, { at = 0x0029FD70 }, { at = 0x002A0DD0 },
+    { at = 0x002B2630 }, { at = 0x002F79A0 }, { at = 0x002F7B20 },
+# B
+    { at = 0x00076BA0 }, { at = 0x0007DCB0 }, { at = 0x00083B80 }, { at = 0x00083CC0 },
+    { at = 0x00083DD0 }, { at = 0x00087B50 }, { at = 0x00087EA0 }, { at = 0x00090FD0 },
+    { at = 0x00091800 }, { at = 0x00092600 }, { at = 0x00092C40 }, { at = 0x00092D70 },
+    { at = 0x00093E90 }, { at = 0x000971A0 }, { at = 0x00097230 }, { at = 0x000A2670 },
+    { at = 0x000A26C0 }, { at = 0x000A5840 }, { at = 0x000AD2B0 }, { at = 0x000BF2A0 },
+    { at = 0x000BFF60 }, { at = 0x000C0260 }, { at = 0x000C2620 }, { at = 0x000CE470 },
+    { at = 0x000CE510 }, { at = 0x000CF820 }, { at = 0x000D34F0 }, { at = 0x000D4DE0 },
+    { at = 0x000DDCD0 }, { at = 0x000E1A80 }, { at = 0x000E5480 }, { at = 0x000E66E0 },
+    { at = 0x000E6A50 }, { at = 0x000E6BA0 }, { at = 0x000E71B0 }, { at = 0x000E9DB0 },
+    { at = 0x0011F150 }, { at = 0x00123440 }, { at = 0x00126FD0 }, { at = 0x001294F0 },
+    { at = 0x00133320 }, { at = 0x00133E50 }, { at = 0x00134E40 }, { at = 0x00139450 },
+    { at = 0x00140340 }, { at = 0x001420E0 }, { at = 0x0014B050 }, { at = 0x0014B9C0 },
+    { at = 0x00158700 }, { at = 0x001665B0 }, { at = 0x00167910 }, { at = 0x00167A00 },
+    { at = 0x001753F0 }, { at = 0x00176E70 }, { at = 0x001774B0 }, { at = 0x00178BC0 },
+    { at = 0x00178BE0 }, { at = 0x00179580 }, { at = 0x0017ACF0 }, { at = 0x0017C830 },
+    { at = 0x00183250 }, { at = 0x001843D0 }, { at = 0x0018FDD0 }, { at = 0x00191960 },
+    { at = 0x001969F0 }, { at = 0x001AB080 }, { at = 0x001BB840 }, { at = 0x001ECB50 },
+    { at = 0x001F0C40 }, { at = 0x001F0FF0 }, { at = 0x001F33D0 }, { at = 0x001FE3E0 },
+    { at = 0x00200190 }, { at = 0x00200E30 }, { at = 0x00201A10 }, { at = 0x00209030 },
+    { at = 0x0020BAD0 }, { at = 0x002143A0 }, { at = 0x0022CF40 }, { at = 0x00255BD0 },
+    { at = 0x00267030 }, { at = 0x00267050 }, { at = 0x00282710 }, { at = 0x0028CD70 },
+    { at = 0x0028D420 }, { at = 0x0028D580 },
+# C
+    { at = 0x001216D0 },
+# E
+    { at = 0x00104B00 }, { at = 0x003034F4 },
+]
+
+# ── Instruction hooks (toolkit tools/recomp/hooks_config.py; a change needs a re-lift) ─────────────────────────
+# D3D 5028 write-combine flush acknowledge (as THPS 2X config/hooks.toml, M3.5): CDevice_KickOff (sub_002AFD90)
+# and its siblings sub_002AFD30 / sub_002AFE70 set bit 16 of NV2A 0x00100410 and spin ("test [eax+0x100410],
+# 0x10000 / jne") until the GPU clears it. On the host only the toolkit's flag thread cleared it, every
+# RECOMP_NV2A_POLL_US (200 us), so every kickoff spun up to 200 us: a gameplay profile (run
+# 20261103_214459_B_prof1, attract demo ~155 s) had the main thread 97 % busy, 331 of 400 samples in KickOff.
+# recomp_spin_wake() (the runtime's flush acknowledge) right before the test ends the spin at once. The hook sits
+# at the loop head (the test instruction itself); no flag is live there (the test sets them).
+[[hook]]
+at = 0x002AFD50
+call = "recomp_spin_wake"
+
+[[hook]]
+at = 0x002AFDD0
+call = "recomp_spin_wake"
+
+[[hook]]
+at = 0x002AFEB0
+call = "recomp_spin_wake"
+
+# Movie-start race forcing test (2026-11-04): in the Sofdec decoder sub_002F9620, right after the call
+# to sub_0023E2A0 returns and before "call [[esi]+0x20]" at 0x2F9CC5 (the crash site of
+# ref_port_20261103_192903\orta_crash.log; esi = [esp+0x40] = 0x4BE4A0 there). orta_race_sofdec_delay() sleeps
+# ORTA_RACE_SOFDEC_MS (off by default) to widen the window; A/B with ORTA_CRI_LOCK=0. No flag is live here.
+[[hook]]
+at = 0x002F9CBB
+call = "orta_race_sofdec_delay"
+
+# Options screen open (sub_000AF410): right after its sprite load sub_001B7930 returns, before sub_001C0F40 /
+# sub_0002A980 (relabel + views, recomp_manual.c orta_opt_after_load). First try at 0x0AF4FA landed in
+# sub_000AF4E0, which did not run when OPTIONEN opened (run 20261104_050039_opt_compact2). Flags dead: next is push 2.
+[[hook]]
+at = 0x000AF4BD
+call = "orta_opt_after_load"

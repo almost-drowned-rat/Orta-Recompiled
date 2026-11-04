@@ -1,0 +1,15 @@
+# new_game.txt - Orta (PAL): from boot through the title screen into a new game.
+# Syntax (toolkit src/usb/usb_gamepad.c): <ms>:<button>[+<button>...][:<hold ms>]
+# Times count from the first pad report the game asks for (USB enumeration, ~1 s after start).
+# Title screen "START DRUECKEN" is up at ~40 s (Sofdec logo + intro before it; run m1_dump 2026-11-01).
+# Unverified menu path (first try): START at the title, then A on the first entries, START to skip text.
+3000:start:200
+8000:start:200
+42000:start:200
+47000:a:200
+52000:a:200
+57000:a:200
+62000:a:200
+70000:start:200
+80000:start:200
+90000:a:200

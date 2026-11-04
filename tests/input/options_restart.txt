@@ -1,0 +1,26 @@
+# options_restart.txt - Orta (PAL) RECOMP OPTIONS -> RESTART NEEDED (views layout, the default): boot -> title ->
+# START -> main menu -> OPTIONEN (as options_menu.txt), then TOP down x3 (RECOMP OPTIONS) -> A -> RECOMP, down x2
+# (ASPECT RATIO), right (16:9 - RESTART), B -> RESTART NEEDED on RESTART NOW, down (LATER), A -> TOP on RECOMP
+# OPTIONS, A -> RECOMP, down x2, left (4:3 again: nothing pending), B -> TOP directly, B leaves and saves.
+# RESTART NOW itself is not scripted (it would restart the test process).
+39000:start:200
+45000:down:200
+47000:down:200
+49000:down:200
+52000:a:200
+56000:down:200
+58000:down:200
+60000:down:200
+63000:a:200
+66000:down:200
+68000:down:200
+71000:right:200
+74000:b:200
+77000:down:200
+80000:a:200
+83000:a:200
+86000:down:200
+88000:down:200
+91000:left:200
+94000:b:200
+98000:b:200

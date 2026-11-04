@@ -1,0 +1,31 @@
+# first_level.txt - Orta (PAL): boot -> title -> START -> main menu -> NEUES SPIEL -> NORMAL -> skip the opening
+# cut scenes -> first level. Syntax (toolkit src/usb/usb_gamepad.c): <ms>:<button>[+<button>...][:<hold ms>]
+# Times count from the first pad report the game asks for (~1 s after start).
+# Title -> main menu -> new game as in main_menu.txt (run 20261101_200335_m3_32: story intro text at ~60 s).
+# A new game plays several cut scenes in a row; the maintainer (2026-11-01): A or START skips them (which one is not
+# known), so both are pressed in turn, START first, then A 2 s later, every 6 s.
+39000:start:200
+42000:start:200
+45000:start:200
+52000:a:200
+58000:a:200
+64000:start:200
+66000:a:200
+70000:start:200
+72000:a:200
+76000:start:200
+78000:a:200
+82000:start:200
+84000:a:200
+88000:start:200
+90000:a:200
+94000:start:200
+96000:a:200
+100000:start:200
+102000:a:200
+106000:start:200
+108000:a:200
+112000:start:200
+114000:a:200
+118000:start:200
+120000:a:200

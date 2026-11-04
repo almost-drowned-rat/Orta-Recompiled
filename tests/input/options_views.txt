@@ -1,0 +1,69 @@
+# options_views.txt - Orta (PAL) options menu views (maintainer's layout, ORTA_OPT_VIEWS=1): boot -> title -> START ->
+# main menu -> OPTIONEN (as options_menu.txt), then walk the views:
+#   TOP (ANZEIGE SICHTBAR / SOUND / CONTROLS / RECOMP OPTIONS) -> down to SOUND -> A -> SOUND view (3 volumes),
+#   down x2, left once (STIMMEN volume -1), Y (STIMMEN back to full), B -> TOP on SOUND -> down to CONTROLS -> A ->
+#   CONTROLS view (AIMING / VIBRATION / BUTTON MAPPING), down, right (VIBRATION AUS), Y (back to EIN), down, B ->
+#   TOP on CONTROLS -> down to RECOMP OPTIONS -> A -> RECOMP view
+#   (9 value lines), down x3 (ANISOTROPIC FILTER), left once (16X -> 8X, saved to settings.ini), Y (back to 16X),
+#   down (ANTIALIASING) -> A -> its list, down x2, A picks SMAA, B -> RECOMP on ANTIALIASING, down (FRAME RATE) -> A
+#   -> its list, down x2 (FPS COUNTER), right (FPS), B -> RECOMP on FRAME RATE, up x3 (ASPECT RATIO), right
+#   (16:9 - RESTART), Y (back to 4:3), down x6 (BRIGHTNESS AND CONTRAST) -> A -> its list: right x3 (BRIGHTNESS 3),
+#   down, left (CONTRAST -1), Y (CONTRAST 0), B -> RECOMP on BRIGHTNESS AND CONTRAST, B -> TOP (nothing pending).
+39000:start:200
+45000:down:200
+47000:down:200
+49000:down:200
+52000:a:200
+56000:down:200
+59000:a:200
+62000:down:200
+65000:down:200
+68000:left:200
+69500:y:200
+71000:b:200
+74000:down:200
+77000:a:200
+80000:down:200
+80800:right:200
+81500:y:200
+83000:down:200
+86000:b:200
+89000:down:200
+92000:a:200
+95000:down:200
+98000:down:200
+101000:down:200
+104000:left:200
+105500:y:200
+107000:down:200
+109000:a:200
+111000:down:200
+113000:down:200
+115000:a:200
+117000:b:200
+119000:down:200
+121000:a:200
+123000:down:200
+125000:down:200
+127000:right:200
+129000:b:200
+131000:up:200
+133000:up:200
+135000:up:200
+137000:right:200
+139000:y:200
+141000:down:200
+143000:down:200
+145000:down:200
+147000:down:200
+149000:down:200
+151000:down:200
+153000:a:200
+154500:right:200
+155200:right:200
+155900:right:200
+157000:down:200
+158000:left:200
+159000:y:200
+161000:b:200
+165000:b:200

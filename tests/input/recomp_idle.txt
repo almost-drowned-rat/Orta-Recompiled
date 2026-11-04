@@ -1,0 +1,12 @@
+# recomp_idle.txt - Orta (PAL): boot -> title -> START -> main menu -> OPTIONEN -> RECOMP OPTIONS, then no input for
+# ~25 s - for the maintainer's "a square runs through the background from left to right" in RECOMP OPTIONS
+# (2026-11-04 ~15:25): GL dumps of the idle screen show whether a sprite moves across it.
+39000:start:200
+45000:down:200
+47000:down:200
+49000:down:200
+52000:a:200
+56000:down:200
+58000:down:200
+60000:down:200
+63000:a:200

@@ -1,0 +1,31 @@
+# Panzer Dragoon Orta - game configuration (toolkit tools/gameconfig.py).
+# Common part here, one file per disc version under variants/, chosen by the SHA-256 of default.xbe.
+# Hand-maintained: no tool writes this file. Paths are relative to the file they appear in.
+#
+# Versions (maintainer rule 2026-11-01, all recomps: a player uses exactly one version; development builds hold
+# every version in one exe - toolkit option-c variant mechanism):
+#   pal  Europe (PAL)  title ID 4947002B, 6 text languages (EN/FR/GE/IT/SP + JP files)  - the supported version
+# Orta is PAL only (maintainer 2026-11-01). The US variant (title ID 53450007, XDK 4928) was removed on 2026-11-04
+# together with its seed list (taken from another project, no declared licence - docs/sources.md).
+# A version is added here only once its image exists (sha256 of its default.xbe).
+schema_version = 1
+
+[game]
+title = "Panzer Dragoon Orta"
+
+# Equal for all versions (a variant file may override a key in its own [recomp]/[disasm]).
+# Code = .text + the XDK library sections. Not APPDATA (writable data with the X flag: decoded as code it gave
+# 100k-line bogus functions, lift #1) and not DOLBY (APU DSP microcode). Same list as the reference port.
+[disasm]
+text_only = true
+extra_sections = ["MMATRIX", "D3D", "D3DX", "DSOUND", "WMADEC", "PSGSFD00", "PSGSFD_I", "PSGSFD_B", "PSGSFD_P",
+                  "XGRPH", "XPP"]
+
+[recomp]
+split = 1000
+exclude_manual = "../src/recomp_manual.c"
+
+[variant.pal]
+label = "Europe (PAL)"
+sha256 = "0776e8607d820c4e359a8059cad3aabe30629abdd13dbc33553151e43587c26d"
+file = "variants/pal.toml"

@@ -1,0 +1,2 @@
+// orta.rc -- the exe's icon in Explorer (assets/README.md). Compiled with llvm-rc; Windows builds only.
+1 ICON "icon.ico"

@@ -1,0 +1,30 @@
+# options_bind.txt - Orta (PAL) CONTROLS > BUTTON MAPPING (views layout, the default): boot -> title -> START ->
+# main menu -> OPTIONEN (as options_menu.txt), then TOP down x2 (CONTROLS) -> A -> CONTROLS view, down x2 (BUTTON
+# MAPPING) -> A -> BUTTON MAPPING (DEVICE: KEYBOARD in automated runs), down x2 (DPAD UP) -> A records a press: a
+# scripted press is no host key, so the 5 s timeout leaves it unchanged; down x6 (NEXT PAGE) -> A (page 2), Y (reset
+# to default), B -> CONTROLS on BUTTON MAPPING, B -> TOP on CONTROLS, B leaves and saves.
+39000:start:200
+45000:down:200
+47000:down:200
+49000:down:200
+52000:a:200
+56000:down:200
+58000:down:200
+61000:a:200
+64000:down:200
+66000:down:200
+69000:a:200
+72000:down:200
+74000:down:200
+77000:a:200
+85000:down:200
+87000:down:200
+89000:down:200
+91000:down:200
+93000:down:200
+95000:down:200
+97000:a:200
+100000:y:200
+103000:b:200
+106000:b:200
+110000:b:200

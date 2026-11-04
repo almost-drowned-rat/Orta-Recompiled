@@ -1,0 +1,53 @@
+name: Bug report
+description: Something does not work, looks wrong or runs badly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing the open beta! The log is the most useful part: `data\orta.log` in the game folder, copied
+        right after the run where the problem happened (the next start keeps only one older log, `data\orta.previous.log`).
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release you downloaded (e.g. v0.6.0-beta)
+      placeholder: v0.6.0-beta
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows 11
+        - Windows 10
+        - Other (say below)
+    validations:
+      required: true
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU and driver
+      description: GPU model and driver version (the port needs Vulkan 1.3)
+      placeholder: "RTX 3060, driver 581.xx"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What happened, and how to get there
+      description: Episode / menu, what you did, what you expected. Settings you changed from the defaults (RECOMP OPTIONS, ASPECT RATIO, RENDER RESOLUTION, ...).
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Drag `data\orta.log` here. For frame-rate or stutter reports start the game with the environment variable `RECOMP_FRAME_TIME=1` and attach `data\frametime.csv` too.
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshot or video (optional)
