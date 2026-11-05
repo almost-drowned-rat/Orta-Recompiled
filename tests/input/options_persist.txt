@@ -1,0 +1,24 @@
+# options_persist.txt - Orta (PAL), fresh saves: do AUF/AB (AIMING) and VIBRATION changed in OPTIONS survive a quit?
+# (maintainer 2026-11-05: they are only in OPTIONS now.) Main menu (cursor NEUES SPIEL) -> down x2 -> OPTIONEN -> A ->
+# TOP (PRACTICE first) -> down x3 -> CONTROLS -> A -> AIMING: right (INVERTIERT) -> down -> VIBRATION: right (AUS) ->
+# B -> B (leave OPTIONS, the game keeps the values) -> main menu on OPTIONEN -> down -> EXIT GAME -> A -> up (YES) ->
+# A: the game ends. A second run with -SavesFrom <this run>\saves logs the values at the main menu ("[MENU] open").
+39000:start:200
+44000:down:200
+45500:down:200
+47000:a:200
+51000:down:200
+52500:down:200
+54000:down:200
+55500:a:200
+58000:right:200
+59500:down:200
+61000:right:200
+62500:shot=01_controls_changed
+63000:b:200
+65000:b:200
+69000:shot=02_menu_after
+70000:down:200
+71500:a:200
+73000:up:200
+74000:a:200

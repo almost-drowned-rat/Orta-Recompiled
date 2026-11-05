@@ -954,7 +954,9 @@ enum { OPT_V_TOP, OPT_V_CONTROLS, OPT_V_SOUND, OPT_V_RECOMP, OPT_V_AA, OPT_V_FPS
        OPT_V_RESTART, OPT_V_PIC, OPT_V_N };
 static const signed char k_opt_rows[OPT_V_N][9] = {
     /* line:   0   1   2   3   4   5   6   7   8 */
-    {         -1, -1,  2, -1, -1, -1,  0,  1,  3 },   /* TOP: ANZEIGE, SOUND, CONTROLS, RECOMP (maintainer ~08:00) */
+    /* TOP: PRACTICE (line 0, its AIMING value parked; maintainer 2026-11-04 late: ÜBUNG moves here as the first line),
+     * ANZEIGE, SOUND, CONTROLS, RECOMP (maintainer 2026-11-04 ~08:00) */
+    {          0, -1,  3, -1, -1, -1,  1,  2,  4 },
     {          0,  1,  2, -1, -1, -1, -1, -1, -1 },   /* CONTROLS */
     {         -1, -1, -1,  0,  1,  2, -1, -1, -1 },   /* SOUND */
     {          0,  1,  2,  3,  4,  5,  6,  7,  8 },   /* RECOMP OPTIONS: every stock line, value sprites parked */
@@ -968,7 +970,7 @@ static const signed char k_opt_rows[OPT_V_N][9] = {
 /* views whose lines show their stock value sprites (others park them, "NAME: VALUE" is in the text) */
 static const unsigned char k_opt_values[OPT_V_N] = { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 };
 static const char *const k_opt_text[OPT_V_N][9] = {
-    { 0, 0, "CONTROLS", 0, 0, 0, 0, "SOUND", "RECOMP OPTIONS" },
+    { "PRACTICE", 0, "CONTROLS", 0, 0, 0, 0, "SOUND", "RECOMP OPTIONS" },
     { "AIMING", 0, "BUTTON MAPPING", 0, 0, 0, 0, 0, 0 },
     { 0 },
 };
@@ -1696,7 +1698,10 @@ static void opt_layout(int view)
         if (row < 0) { s_opt_hidden |= 1u << line; continue; }
         moved += opt_shift_line(line, s_opt_row[line], row, OPT_MV_LABEL);
         s_opt_row[line] = row;
-        if (k_opt_values[view]) { moved += opt_shift_line(line, s_opt_vrow[line], row, OPT_MV_VALUE); s_opt_vrow[line] = row; }
+        /* TOP's PRACTICE is stock line 0 (AIMING): its value stays parked */
+        if (k_opt_values[view] && !(view == OPT_V_TOP && line == 0)) {
+            moved += opt_shift_line(line, s_opt_vrow[line], row, OPT_MV_VALUE); s_opt_vrow[line] = row;
+        }
         opt_line_text(line, t);
     }
     {
@@ -1779,9 +1784,12 @@ static void opt_cursor_first(X86Ctx *ctx, uint8_t *base, uint32_t obj)
  * stored), so a cached instance goes stale - this hook catches every create. */
 void sub_001BB610(RECOMP_PARAMS)
 {
-    uint32_t id = GUEST32(g_esp + 4), inst, b;
+    uint32_t id = GUEST32(g_esp + 4), inst, b, caller = GUEST32(g_esp);
+    static int diag = -1;
+    if (diag < 0) diag = getenv("ORTA_DIAG_CREATE") != NULL;
     sub_001BB610_gen(ctx, base);
     inst = g_eax;
+    if (diag) fprintf(stderr, "[CREATE] id 0x%X from 0x%08X -> %08X\n", id, caller, inst);
     if (inst && s_settext_n && (b = opt_settext_buf(id))) opt_settext(ctx, base, inst, b);
     g_eax = inst;
 }
@@ -1866,6 +1874,7 @@ static const char *opt_help_for(int view, uint32_t line)
     if (view == OPT_V_FPS && line < 3) return k_fps[line];
     if (view == OPT_V_BOOT)
         return "Plays media\\boot.mpg at every start.\nLeft or right to change, Y for the default.\nSee the README.";
+    if (view == OPT_V_TOP && line == 0) return "The practice missions: flying, aiming, dragon forms.\nPress A to start.";
     if (view == OPT_V_TOP && line == 2) return "Aiming, vibration and button mapping.\nPress A to open.";
     if (view == OPT_V_TOP && line == 7) return "Music, effects and voice volume.\nPress A to open.";
     if (view == OPT_V_TOP && line == 8) return "Display and graphics settings of the recomp.\nPress A to open.";
@@ -1971,6 +1980,22 @@ void sub_000AF580(RECOMP_PARAMS)
             fprintf(stderr, "[OPT] view %d line %u: default\n", s_opt_view, cur);
         }
     }
+    if (s_opt_view == OPT_V_TOP && cur == 0 && (bits & (0x101u | 0x08000000u | 0x04000000u))) {
+        /* PRACTICE: left / right would switch the hidden AIMING value - swallowed. A = leave OPTIONS the game's own
+         * way (B at TOP: saves the settings, back to the main menu), which then starts ÜBUNG (sub_000C0280). */
+        extern int g_orta_practice_request;
+        uint32_t keep = bits & ~(0x101u | 0x08000000u | 0x04000000u);
+        if (bits & 0x101u) {
+            g_orta_practice_request = 1;
+            keep |= 0x202u;
+            fprintf(stderr, "[OPT] PRACTICE: leaving OPTIONS for ÜBUNG\n");
+        }
+        GUEST32(obj + 0x18) = keep;
+        g_ecx = obj;
+        sub_000AF580_gen(ctx, base);
+        GUEST32(obj + 0x18) = bits;
+        return;
+    }
     if (bits & 0x101u) {                                     /* A */
         int to = -1, swallow;
         const opt_pl_t *pl = opt_pl(s_opt_view, (int)cur);
@@ -2067,8 +2092,742 @@ void sub_000AF580(RECOMP_PARAMS)
         GUEST32(obj + 0x18) = bits;
         return;
     }
+    if ((bits & 0x202u) && s_opt_view == OPT_V_TOP) {
+        /* Leaving OPTIONS keeps every change (2026-11-05: AUF/AB and VIBRATION are only here now, maintainer). The
+         * stock B CANCELS: it writes AUF/AB / VIBRATION / ANZEIGE, then copies the snapshot taken at the open
+         * (obj+0x27C, 0xDA5 dwords) back over the whole settings block 0x342748.. - so it restores the old values;
+         * only the stock VERLASSEN line kept them, and the maintainer's layout has no VERLASSEN (run
+         * 20261105_020204_persist1: UMGEK. / AUS on screen, AUF/AB 0 / VIBRATION 1 after leaving). The live values go
+         * into the snapshot first, so the restore keeps them (volumes, BRIGHTNESS / CONTRAST included). */
+        uint32_t i;
+        GUEST32(0x0034274Cu) = GUEST32(obj + 0x8C);
+        GUEST32(0x00342750u) = GUEST32(obj + 0x90);
+        GUEST32(0x00342790u) = GUEST32(obj + 0xA4);
+        for (i = 0; i < 0xDA5u; i++) GUEST32(obj + 0x27C + 4u * i) = GUEST32(0x00342748u + 4u * i);
+        fprintf(stderr, "[OPT] leaving OPTIONS: changes kept (AUF/AB %u, VIBRATION %u)\n", GUEST32(0x0034274Cu),
+                GUEST32(0x00342750u));
+    }
     g_ecx = obj;   /* opt_cursor_first's extra handler runs leave ecx changed (run 20261104_074744_opt_views1: ecx 0) */
     sub_000AF580_gen(ctx, base);
+}
+
+/* ── Main menu (maintainer 2026-11-04/05, docs/menu_rework.md) ─────────────────────────────────────────────────────
+ *
+ * Stock: NEUES SPIEL, WEITER, PANDORAS BÜCHSE, ÜBUNG, OPTIONEN (lines 0..4). Wanted: WEITER, NEUES SPIEL, PANDORAS
+ * BÜCHSE, OPTIONEN, EXIT GAME - ÜBUNG moves into OPTIONS as PRACTICE, EXIT GAME asks YES / NO. Five rows either way,
+ * so nothing moves on screen: each ROW keeps its sprites and gets the text and the action of another LINE.
+ * The handler sub_000C0280 (this = the title screen object; static RE in docs/menu_rework.md): +0x10 state (0 open,
+ * 1 fade in, 2 input, 3 confirm flash, 4 leave, 5 fade out), +0x2C input edge bits, +0xC0 cursor (= ROW here),
+ * +0x30 "a save exists" (row WEITER is skipped without one), labels per row: normal 0x36E6D8[r] at +0x70+4r,
+ * selected 0x36E6B0[r] at +0x98+4r (made on confirm), +0x84 / +0xAC freed on confirm; help id 0x36E6C4[line] through
+ * sub_000BF630; result on leaving +0x20 = 0x36E69C[line], +0x1AC = 0x36E688[line].
+ * Texts through the game's SetText (the sprite-create hook above, by record id, only while the menu is open - the
+ * same ids exist in other sprite sets). The moved stock labels keep the game's own text in every language (decoded
+ * from the loaded records); EXIT GAME, YES, NO are English in every language (maintainer). ORTA_MAIN_MENU=0 = stock. */
+extern void sub_000C0280_gen(RECOMP_PARAMS);
+extern void sub_00012610(RECOMP_PARAMS);
+extern void sub_001BAB20(RECOMP_PARAMS);
+extern void sub_000BF630(RECOMP_PARAMS);
+extern void sub_0004F260(RECOMP_PARAMS);
+extern void sub_0004F2C0(RECOMP_PARAMS);
+extern void sub_000345B0(RECOMP_PARAMS);
+
+static uint32_t opt_find_data(uint32_t id, uint32_t *node_out);
+enum { MM_NEW, MM_CONT, MM_PB, MM_PRACTICE, MM_OPT, MM_EXIT };     /* stock lines 0..4, EXIT GAME = 5 */
+#define MM_ROWS 5
+static const int k_mm_line[MM_ROWS] = { MM_CONT, MM_NEW, MM_PB, MM_OPT, MM_EXIT };
+static int s_mm_reg;            /* our texts registered with the create hook */
+static int s_mm_confirm;        /* the EXIT GAME? YES / NO view is up */
+static int s_mm_back_row = -1;  /* the row to land on when the menu comes back (from OPTIONEN / PANDORAS BÜCHSE) */
+int g_orta_practice_request;    /* set by OPTIONS > PRACTICE: the main menu starts ÜBUNG as soon as it is up */
+static char s_mm_text[MM_ROWS][48];
+
+static int mm_on(void)
+{
+    const char *e = getenv("ORTA_MAIN_MENU");
+    return !(e && *e == '0');
+}
+
+/* cdecl call of a guest function with up to 2 args; returns eax */
+static uint32_t mm_cdecl(X86Ctx *ctx, uint8_t *base, void (*fn)(RECOMP_PARAMS), int n, uint32_t a0, uint32_t a1)
+{
+    if (n > 1) { g_esp -= 4; GUEST32(g_esp) = a1; }
+    if (n > 0) { g_esp -= 4; GUEST32(g_esp) = a0; }
+    g_esp -= 4; GUEST32(g_esp) = 0;                 /* return address slot, popped by the callee's ret */
+    fn(ctx, base);
+    g_esp += 4 * (uint32_t)n;
+    return g_eax;
+}
+
+static void mm_help(X86Ctx *ctx, uint8_t *base, uint32_t obj, int line)
+{
+    /* sub_000BF630: thiscall, one arg, callee pops it (the stock call sites add nothing to esp after it) */
+    /* EXIT GAME has no message of its own: -1 = no help text (the game's own call when the menu closes) */
+    uint32_t id = line == MM_EXIT ? 0xFFFFFFFFu : GUEST32(0x0036E6C4u + 4u * (uint32_t)line);
+    g_esp -= 4; GUEST32(g_esp) = id;
+    g_esp -= 4; GUEST32(g_esp) = 0;
+    g_ecx = obj;
+    sub_000BF630(ctx, base);
+}
+
+/* the game's own text of a loaded record (its first text node), decoded; 0 when not found / not decodable */
+static int mm_record_text(uint32_t id, char *out, size_t cap)
+{
+    uint32_t d = opt_find_data(id, NULL), k, node, c = 0, g = 0;
+    if (!d || !(k = GUEST32(d + 0x54)) || !(node = GUEST32(k))) return 0;
+    opt_node_stock(node, &c, &g);
+    return opt_decode(g, c, out, cap);
+}
+
+/* Same row spacing on every row (maintainer 2026-11-05: "zeilenabstände immer gleich"). The rows' records carry their
+ * place as x | y << 16 words (x 0x140 = the centre, 0xFED4 = the slide-in start) at y 70 / 120 / 170 / 220 / 280 - the
+ * last row 60 below instead of 50. Evened out in the loaded records of all four row tables: y = 70 + 50 * row.
+ * The letter size ("alle texte die selbe größe") is no record value: the menu font has small capitals on the LOWER
+ * case codes, which every stock label uses; "EXIT GAME" in upper case got the big capitals (run 20261105_010125_
+ * mm_live2: glyph codes 0x91.. against the labels' 0xAB..) - so the port's label is written in lower case. */
+static void mm_even_rows(void)
+{
+    static const uint32_t k_tabs[4] = { 0x0036E6D8u, 0x0036E62Cu, 0x0036E6B0u, 0x0036E618u };
+    static const uint32_t k_y[MM_ROWS] = { 0x46, 0x78, 0xAA, 0xDC, 0x118 };
+    int t, r, i, done = 0;
+    for (t = 0; t < 4; t++) {
+        uint32_t pos_addr[MM_ROWS][4], npos[MM_ROWS] = { 0 };
+        for (r = 0; r < MM_ROWS; r++) {
+            uint32_t d = opt_find_data(GUEST32(k_tabs[t] + 4u * (uint32_t)r), NULL), blk[3], b;
+            blk[0] = d;
+            blk[1] = d ? GUEST32(d + 0x64) : 0;
+            blk[2] = blk[1] ? GUEST32(blk[1] + 0x6C) : 0;
+            for (b = 0; b < 3; b++) {
+                if (blk[b] < 0x00010000u || blk[b] >= 0x04000000u) continue;
+                for (i = 0; i < 40; i++) {
+                    uint32_t a = blk[b] + 4u * (uint32_t)i, w = GUEST32(a);
+                    if ((w >> 16) != k_y[r] || ((w & 0xFFFFu) != 0x140u && (w & 0xFFFFu) != 0xFED4u)) continue;
+                    if (npos[r] < 4) pos_addr[r][npos[r]++] = a;
+                }
+            }
+        }
+        for (r = 0; r < MM_ROWS; r++) {
+            uint32_t k;
+            for (k = 0; k < npos[r]; k++) {
+                uint32_t a = pos_addr[r][k];
+                GUEST32(a) = (GUEST32(a) & 0xFFFFu) | ((0x46u + 50u * (uint32_t)r) << 16);
+                done++;
+            }
+        }
+    }
+    fprintf(stderr, "[MENU] rows evened (%d position words)\n", done);
+}
+
+static void mm_register(void)
+{
+    int r;
+    if (!getenv("ORTA_MM_KEEP_ROWS")) mm_even_rows();
+    for (r = 0; r < MM_ROWS; r++) {
+        int line = k_mm_line[r];
+        if (line == MM_EXIT) snprintf(s_mm_text[r], sizeof s_mm_text[r], "exit game");   /* small capitals */
+        else if (!mm_record_text(GUEST32(0x0036E6D8u + 4u * (uint32_t)line), s_mm_text[r], sizeof s_mm_text[r]))
+            s_mm_text[r][0] = 0;
+        fprintf(stderr, "[MENU] row %d = line %d \"%s\"\n", r, line, s_mm_text[r]);
+    }
+    for (r = 0; r < MM_ROWS; r++) {
+        if (k_mm_line[r] == r || !s_mm_text[r][0]) continue;   /* PANDORAS BÜCHSE stays where it is */
+        opt_settext_set(GUEST32(0x0036E6D8u + 4u * (uint32_t)r), s_mm_text[r]);
+        opt_settext_set(GUEST32(0x0036E6B0u + 4u * (uint32_t)r), s_mm_text[r]);
+        /* the cursor row's own sprites (sub_000BF900: 0x36E62C / 0x36E618 on the cursor row, 0x36E604 elsewhere) */
+        opt_settext_set(GUEST32(0x0036E62Cu + 4u * (uint32_t)r), s_mm_text[r]);
+        opt_settext_set(GUEST32(0x0036E618u + 4u * (uint32_t)r), s_mm_text[r]);
+    }
+    s_mm_reg = 1;
+}
+
+static void mm_unregister(void)
+{
+    int r;
+    if (!s_mm_reg) return;
+    for (r = 0; r < MM_ROWS; r++) {
+        opt_settext_set(GUEST32(0x0036E6D8u + 4u * (uint32_t)r), NULL);
+        opt_settext_set(GUEST32(0x0036E6B0u + 4u * (uint32_t)r), NULL);
+        opt_settext_set(GUEST32(0x0036E62Cu + 4u * (uint32_t)r), NULL);
+        opt_settext_set(GUEST32(0x0036E618u + 4u * (uint32_t)r), NULL);
+    }
+    s_mm_reg = 0;
+}
+
+static void mm_confirm_view(X86Ctx *ctx, uint8_t *base, uint32_t obj, int on)
+{
+    static const char *const k_q[MM_ROWS] = { "EXIT GAME?", "YES", "NO", " ", " " };
+    static const uint32_t k_tabs[4] = { 0x0036E6D8u, 0x0036E6B0u, 0x0036E62Cu, 0x0036E618u };
+    static const uint32_t k_live[4] = { 0x70, 0x84, 0x98, 0xAC };
+    int r, t;
+    s_mm_confirm = on;
+    /* The game makes the row sprites again whenever the cursor moves (sub_000BF900), so the texts go into the create
+     * hook's table (every row, all four record tables) AND onto the sprites alive now. */
+    for (r = 0; r < MM_ROWS; r++) {
+        const char *txt = on ? k_q[r] : s_mm_text[r];
+        char stock[48];
+        uint32_t b;
+        if (!txt[0]) {
+            if (!mm_record_text(GUEST32(0x0036E6D8u + 4u * (uint32_t)r), stock, sizeof stock)) continue;
+            txt = stock;
+        }
+        for (t = 0; t < 4; t++) opt_settext_set(GUEST32(k_tabs[t] + 4u * (uint32_t)r), txt);
+        b = opt_settext_buf(GUEST32(k_tabs[0] + 4u * (uint32_t)r));
+        for (t = 0; b && t < 4; t++) {
+            uint32_t inst = GUEST32(obj + k_live[t] + 4u * (uint32_t)r);
+            if (inst) opt_settext(ctx, base, inst, b);
+        }
+    }
+    GUEST32(obj + 0xC0) = on ? 2u : 4u;                  /* NO / back on EXIT GAME */
+    mm_cdecl(ctx, base, sub_00012610, 2, on ? 9u : 7u, 0x4Bu);
+    fprintf(stderr, "[MENU] EXIT GAME? %s\n", on ? "asked" : "no");
+}
+
+/* the stock confirm (state 2, A) for row r, with the line's own action - the game's code ties WEITER's load calls to
+ * cursor 1, which is NEUES SPIEL's row now */
+static void mm_confirm(X86Ctx *ctx, uint8_t *base, uint32_t obj, int r)
+{
+    static const uint32_t k_free[3] = { 0x98, 0x84, 0xAC };
+    int line = k_mm_line[r], k;
+    mm_cdecl(ctx, base, sub_00012610, 2, 9u, 0x4Bu);
+    for (k = 0; k < 3; k++) {
+        uint32_t a = obj + k_free[k] + 4u * (uint32_t)r, s = GUEST32(a);
+        if (s) { mm_cdecl(ctx, base, sub_001BAB20, 1, s, 0); GUEST32(a) = 0; }
+    }
+    GUEST32(obj + 0x98 + 4u * (uint32_t)r) = mm_cdecl(ctx, base, sub_001BB610, 1, GUEST32(0x0036E6B0u + 4u * (uint32_t)r), 0);
+    if (line == MM_CONT) {
+        mm_cdecl(ctx, base, sub_0004F260, 2, 0u, GUEST32(0x0041A6E8u));
+        mm_cdecl(ctx, base, sub_0004F2C0, 1, 1u, 0);
+        mm_cdecl(ctx, base, sub_000345B0, 1, 1u, 0);
+    }
+    GUEST32(obj + 0x10) = 3;
+    s_mm_back_row = (line == MM_OPT || line == MM_PB) ? r : -1;
+    fprintf(stderr, "[MENU] row %d confirmed (line %d)\n", r, line);
+}
+
+void sub_000C0280(RECOMP_PARAMS)
+{
+    uint32_t obj = g_ecx, st, bits, st_after, ret;
+    int r;
+    if (!obj || !mm_on()) { sub_000C0280_gen(ctx, base); return; }
+    {
+        extern void orta_rumble_test_tick(void);
+        orta_rumble_test_tick();
+    }
+    st = GUEST32(obj + 0x10);
+    bits = GUEST32(obj + 0x2C);
+    {
+        static uint32_t last_st = 99, last_bits;
+        if (st != last_st || (bits && bits != last_bits))
+            fprintf(stderr, "[MENU] state %u bits 0x%08X cursor %u save %u\n", st, bits, GUEST32(obj + 0xC0),
+                    GUEST32(obj + 0x30));
+        last_st = st; last_bits = bits;
+    }
+    if (st == 0 && !s_mm_reg) mm_register();
+    if (st == 2 && g_orta_practice_request) {
+        /* OPTIONS > PRACTICE: ÜBUNG's result straight away (stock: +0x20 = 6, +0x1AC = -1, then leave) */
+        g_orta_practice_request = 0;
+        GUEST32(obj + 0x20) = GUEST32(0x0036E69Cu + 4u * MM_PRACTICE);
+        GUEST32(obj + 0x1AC) = GUEST32(0x0036E688u + 4u * MM_PRACTICE);
+        GUEST32(obj + 0x10) = 4;
+        s_mm_back_row = 3;
+        fprintf(stderr, "[MENU] PRACTICE from OPTIONS: starting ÜBUNG\n");
+        g_eax = 0xFFFFFFFFu;
+        g_esp += 4;                                      /* the handler's ret: pop the return address */
+        return;
+    }
+    if (st == 2 && (bits & (0x101u | 0x202u | 0x01000000u | 0x02000000u))) {
+        int row = (int)(GUEST32(obj + 0xC0) % MM_ROWS);
+        GUEST32(obj + 0x2C) = 0;                         /* the stock handler sees no input this frame */
+        g_ecx = obj;
+        sub_000C0280_gen(ctx, base);
+        GUEST32(obj + 0x2C) = bits;
+        if (s_mm_confirm) {
+            if (bits & 0x101u) {
+                if (row == 1) {
+                    extern void host_quit(void);
+                    fprintf(stderr, "[MENU] EXIT GAME: yes\n");
+                    host_quit();
+                }
+                mm_confirm_view(ctx, base, obj, 0);
+            } else if (bits & 0x202u) {
+                mm_confirm_view(ctx, base, obj, 0);
+            } else {
+                GUEST32(obj + 0xC0) = row == 1 ? 2u : 1u;
+                mm_cdecl(ctx, base, sub_00012610, 2, 8u, 0x4Bu);
+            }
+        } else if (bits & 0x101u) {
+            if (k_mm_line[row] == MM_EXIT) mm_confirm_view(ctx, base, obj, 1);
+            else mm_confirm(ctx, base, obj, row);
+        } else if (bits & 0x202u) {                      /* B: back to the title, as stock */
+            mm_cdecl(ctx, base, sub_00012610, 2, 7u, 0x4Bu);
+            GUEST32(obj + 0x20) = 3;
+            GUEST32(obj + 0x10) = 4;
+            s_mm_back_row = -1;
+        } else {                                         /* up / down by row; WEITER's row only with a save */
+            int dir = (bits & 0x02000000u) ? 1 : MM_ROWS - 1, k;
+            mm_cdecl(ctx, base, sub_00012610, 2, 8u, 0x4Bu);
+            for (k = 0; k < MM_ROWS; k++) {
+                row = (row + dir) % MM_ROWS;
+                if (!(k_mm_line[row] == MM_CONT && GUEST32(obj + 0x30) == 0)) break;
+            }
+            GUEST32(obj + 0xC0) = (uint32_t)row;
+            mm_help(ctx, base, obj, k_mm_line[row]);
+            fprintf(stderr, "[MENU] row %d\n", row);
+        }
+        g_eax = 0xFFFFFFFFu;
+        return;
+    }
+    g_ecx = obj;
+    sub_000C0280_gen(ctx, base);
+    ret = g_eax;                 /* -1 while the menu runs; at the end of state 5 the result (+0x20) - kept */
+    st_after = GUEST32(obj + 0x10);
+    if (st == 0 && st_after != 0) {
+        /* opened: the start row (back on OPTIONEN / PANDORAS BÜCHSE, else WEITER with a save, NEUES SPIEL without) */
+        r = s_mm_back_row >= 0 ? s_mm_back_row : GUEST32(obj + 0x30) ? 0 : 1;
+        if (k_mm_line[r] == MM_CONT && GUEST32(obj + 0x30) == 0) r = 1;
+        GUEST32(obj + 0xC0) = (uint32_t)r;
+        s_mm_confirm = 0;
+        mm_help(ctx, base, obj, k_mm_line[r]);
+        fprintf(stderr, "[MENU] open: row %d, save %s, AUF/AB %u, VIBRATION %u\n", r, GUEST32(obj + 0x30) ? "yes" : "no",
+                GUEST32(0x0034274Cu), GUEST32(0x00342750u));
+        if (getenv("ORTA_RUMBLE_TEST")) {             /* feel test: half power on both motors, the toolkit holds it */
+            extern void orta_rumble_test(void);
+            orta_rumble_test();
+        }
+    }
+    if (st == 3 && st_after == 4) {                      /* the result by LINE, not by row */
+        int line = k_mm_line[GUEST32(obj + 0xC0) % MM_ROWS];
+        if (line <= MM_OPT) {
+            GUEST32(obj + 0x20) = GUEST32(0x0036E69Cu + 4u * (uint32_t)line);
+            GUEST32(obj + 0x1AC) = GUEST32(0x0036E688u + 4u * (uint32_t)line);
+        }
+    }
+    if (st_after == 5 && s_mm_reg)
+        fprintf(stderr, "[MENU] leaving: result %u / %d, labels %08X %08X %08X %08X %08X\n", GUEST32(obj + 0x20),
+                (int)GUEST32(obj + 0x1AC), GUEST32(obj + 0x70), GUEST32(obj + 0x74), GUEST32(obj + 0x78),
+                GUEST32(obj + 0x7C), GUEST32(obj + 0x80));
+    if (st_after == 5) mm_unregister();
+    g_eax = ret;
+}
+
+/* ── Rumble (maintainer 2026-11-05: "funktioniert eigentlich rumble?" - it did not) ───────────────────────────────
+ * Orta's pad code: sub_0004FF80(slot, left, right) keeps the strongest request per pad slot in 0x449A90 + 8 * slot
+ * (only while VIBRATION is EIN, 0x342750); sub_0004F600 (edx = slot, ebx = the pad's device object) sends it through
+ * the XPP driver when it changed against 0x449A70 - as a USB output report, which the toolkit's OHCI model accepts and
+ * discards (ohci.c, OUT packets), so no motor ever turned. The override hands the same values to the toolkit's
+ * xbox_InputSetState (SDL_RumbleGamepad) for the slot's pad (see below). ORTA_RUMBLE_TEST=1 (feel test): both motors
+ * at half for 2 s whenever the main menu opens. */
+extern void sub_0004F600_gen(RECOMP_PARAMS);
+static void orta_rumble(uint32_t port, uint32_t left, uint32_t right)
+{
+    XBOX_VIBRATION v;
+    DWORD rc;
+    v.wLeftMotorSpeed = (WORD)(left > 0xFFFFu ? 0xFFFFu : left);
+    v.wRightMotorSpeed = (WORD)(right > 0xFFFFu ? 0xFFFFu : right);
+    rc = xbox_InputSetState(port, &v);
+    fprintf(stderr, "[RUMBLE] port %u left %u right %u -> %s\n", port, (unsigned)v.wLeftMotorSpeed,
+            (unsigned)v.wRightMotorSpeed, rc == 0 ? "sent to the controller" : "no controller on that port");
+}
+
+static uint64_t s_rumble_test_end;   /* ms (SDL_GetTicks) when the feel test stops, 0 = none */
+uint64_t SDL_GetTicks(void);
+void orta_rumble_test(void)
+{
+    uint32_t p;
+    for (p = 0; p < 4; p++) orta_rumble(p, 0x8000u, 0x8000u);
+    s_rumble_test_end = SDL_GetTicks() + 2000u;
+}
+void orta_rumble_test_tick(void)
+{
+    uint32_t p;
+    if (s_rumble_test_end && SDL_GetTicks() >= s_rumble_test_end) {
+        s_rumble_test_end = 0;
+        for (p = 0; p < 4; p++) orta_rumble(p, 0, 0);
+    }
+}
+
+void sub_0004F600(RECOMP_PARAMS)
+{
+    uint32_t slot = g_edx, left = 0, right = 0, changed = 0, port = 0;
+    if (slot < 4) {
+        left = GUEST32(0x00449A90u + 8u * slot);
+        right = GUEST32(0x00449A94u + 8u * slot);
+        changed = left != GUEST32(0x00449A70u + 8u * slot) || right != GUEST32(0x00449A74u + 8u * slot);
+        /* The toolkit pad = the SLOT, not the XPP port number in 0x449D68: the toolkit plugs its pads in order (pad 0
+         * on HC0 port 1), which Orta's XPP calls port 2 - the maintainer's session 2026-11-05 02:45 sent every
+         * in-game rumble to port 2, "no controller on that port", while his pad was toolkit pad 0. The game fills its
+         * slots in port order, so slot k = the k-th plugged pad. */
+        port = slot;
+    }
+    sub_0004F600_gen(ctx, base);
+    if (changed && port < 4) orta_rumble(port, left, right);
+}
+
+/* ── Pause menu in gameplay (maintainer 2026-11-04/05, docs/menu_rework.md) ───────────────────────────────────────
+ *
+ * Stock (sub_001B4BA0, this = the pause object; static RE): +0x134 state (6 = input), +0x138 cursor = LINE 0..last
+ * (last = [+0x178] ? 4 : 5), lines WEITER, ERNEUT VERS., AUF/AB (+ value NORMAL / INVERS), VIBRATION (+ EIN / AUS),
+ * SPEICH. & ENDE, SPIEL BEENDEN; record per line and value: idx = line + 6 * value, normal 0x3CF900[idx] (+0x1C +
+ * 4*line), selected 0x3CF960[idx] (+0x34), bar 0x3CF930[idx] (+0x4C); A on lines 2 / 3 toggles 0x34274C / 0x342750.
+ * Wanted: AUF/AB and VIBRATION out (they stay in OPTIONS), EXIT GAME right before SPEICH. & ENDE. */
+extern void sub_001B4BA0_gen(RECOMP_PARAMS);
+
+static void pm_dump_words(uint32_t p, int depth, uint32_t idtag)
+{
+    int i;
+    if (depth > 6 || p < 0x00400000u || p >= 0x04000000u || !opt_set_add(0, p, depth)) return;
+    for (i = 0; i < 64; i++) {
+        uint32_t a = p + 4u * (uint32_t)i, v = GUEST32(a), x = v & 0xFFFFu, y = v >> 16;
+        if (((x > 0 && x < 640) || x == 0xFED4u) && y >= 22 && y < 480)
+            fprintf(stderr, "[PMREC]   id 0x%X depth %d @%08X x %u y %u\n", idtag, depth, a, x, y);
+        else if (v >= 0x00400000u && v < 0x04000000u)
+            pm_dump_words(v, depth + 1, idtag);
+    }
+}
+
+/* The port's pause layout: line 2 (AUF/AB) becomes EXIT GAME - its text through the game's per-language tables (every
+ * pointer to the AUF/AB string, read by sub_001B3670 at each create), its value box hidden; line 3 (VIBRATION) hidden
+ * and skipped; lines 4 / 5 (SPEICH. & ENDE, SPIEL BEENDEN) three rows up, so the rows stay 30 px apart. EXIT GAME asks
+ * in its own line: A -> "exit game? a yes  b no", A again quits, B / up / down cancel. The input edge bits are the
+ * global [0x47DF2C] (sub_001B1CB0), so they are filtered around the stock handler. ORTA_PAUSE_MENU=0 = stock. */
+#define PM_INPUT 0x0047DF2Cu
+static int s_pm_confirm;
+static uint32_t s_pm_str_exit, s_pm_str_ask;
+
+static uint32_t pm_guest_str(const char *t)
+{
+    uint32_t b = xbox_HeapAlloc(48, 16), j, n = (uint32_t)strlen(t);
+    if (!b) return 0;
+    for (j = 0; j <= n && j < 47; j++) *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + b + j) = (uint8_t)t[j];
+    return b;
+}
+
+/* once: the AUF/AB entries of every language table -> "exit game" (lower case = the menu font's small capitals) */
+static void pm_patch_texts(void)
+{
+    static int done;
+    static const char *const k_updown[] = { "up/down", "auf/ab", "ht/bas", "ar./ab.", "su/gi" };
+    uint32_t a;
+    int n = 0;
+    if (done) return;
+    done = 1;
+    s_pm_str_exit = pm_guest_str("exit game");
+    s_pm_str_ask = pm_guest_str("exit game? a yes b no");   /* must end left of the wing panels (x ~345) */
+    if (!s_pm_str_exit) return;
+    for (a = 0x003CC200u; a < 0x003CDE00u; a += 4) {
+        uint32_t p = GUEST32(a), k;
+        char s[12];
+        if (p < 0x00300000u || p >= 0x00400000u) continue;
+        for (k = 0; k < 11; k++) s[k] = (char)*(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + p + k);
+        s[11] = 0;
+        for (k = 0; k < sizeof k_updown / sizeof k_updown[0]; k++)
+            if (!strncmp(s, k_updown[k], strlen(k_updown[k])) && (k == 4 || s[strlen(k_updown[k])] == 0)) {
+                GUEST32(a) = s_pm_str_exit;
+                n++;
+                break;
+            }
+    }
+    fprintf(stderr, "[PAUSE] AUF/AB text entries -> \"exit game\": %d\n", n);
+}
+
+/* alpha [[s+0x50]+8] of sprite s, its children (+0x14) and their siblings (+0x0C), recursively */
+static void pm_alpha_tree(uint32_t s, uint32_t bits, int depth)
+{
+    uint32_t n;
+    for (n = 0; s >= 0x00010000u && s < 0x04000000u && n < 16 && depth < 6; s = GUEST32(s + 0x0C), n++) {
+        uint32_t t = GUEST32(s + 0x50);
+        if (t >= 0x00010000u && t < 0x04000000u) GUEST32(t + 8) = bits;
+        pm_alpha_tree(GUEST32(s + 0x14), bits, depth + 1);
+    }
+}
+
+/* every sprite of a created container (the first one [inst+0x24], its +0x0C siblings and all children); keep_first:
+ * the label itself stays, only what hangs below it goes - the value box (NORMAL / INVERS, EIN / AUS text and its
+ * frame) is a CHILD of the label at +0x14 (run 20261105_013554_preplay6: S+0x14 set only on lines 2 and 3) */
+static void pm_alpha(uint32_t inst, int keep_first, float a)
+{
+    uint32_t s = inst ? GUEST32(inst + 0x24) : 0, bits;
+    memcpy(&bits, &a, 4);
+    if (!(s >= 0x00010000u && s < 0x04000000u)) return;
+    if (keep_first) {
+        pm_alpha_tree(GUEST32(s + 0x14), bits, 1);
+        pm_alpha_tree(GUEST32(s + 0x0C), bits, 1);
+    } else {
+        pm_alpha_tree(s, bits, 0);
+    }
+}
+
+/* lines 4 / 5 three rows up: their records' x | y << 16 words in the row band (y 240 / 270 -> 150 / 180), once per
+ * loaded record (the pause set is loaded per level) */
+/* One record's position words with y in [lo, hi] -> y + dy: its key P = [[D+0x64]+0x6C] (2 words), the key block K =
+ * [D+0x64] itself (inline places of the selected / bar records), then its child record [D+0x14] the same way (the
+ * value box under AUF/AB, the bar's line and sparkles). Only words whose x is a place (0xFFF3 / 0xFEAC, the pause's
+ * offsets, or 0..639) count. A blind walk through every pointer moved non-position words and crashed (run
+ * 20261105_014510_preplay11). */
+static int pm_shift_rec(uint32_t d, uint32_t lo, uint32_t hi, int dy, int depth)
+{
+    uint32_t k, p, j;
+    int n = 0;
+    if (depth > 2 || d < 0x00400000u || d >= 0x04000000u) return 0;
+    k = GUEST32(d + 0x64);
+    if (k >= 0x00400000u && k < 0x04000000u) {
+        p = GUEST32(k + 0x6C);
+        for (j = 0; j < 32 + 2; j++) {
+            uint32_t a = j < 32 ? k + 4u * j : p + 4u * (j - 32), w, x, y;
+            if (j >= 32 && !(p >= 0x00400000u && p < 0x04000000u)) break;
+            w = GUEST32(a); x = w & 0xFFFFu; y = w >> 16;
+            if ((x == 0xFFF3u || x == 0xFEACu || x < 640u || (dy > 300 && x >= 0xFE00u)) && y >= lo && y <= hi &&
+                opt_set_add(1, a, 0)) {
+                GUEST32(a) = x | ((uint32_t)((int)y + dy) << 16);
+                n++;
+            }
+        }
+    }
+    n += pm_shift_rec(GUEST32(d + 0x14), lo, hi, dy, depth + 1);
+    return n;
+}
+
+static void pm_move_rows(void)
+{
+    /* 0x3CFBC0: the lines made at the open (state 3); 0x3CF900 / 960 / 930: remade on every cursor move */
+    /* 0x3CFB00 (6 entries, by line only): the line confirmed with A while its dialog is up (sub_001B4B60) - SPIEL
+     * BEENDEN stayed in its old row there (maintainer's screenshot 2026-11-05 ~02:05) */
+    static const uint32_t k_t[5] = { 0x003CFBC0u, 0x003CF900u, 0x003CF960u, 0x003CF930u, 0x003CFB00u };
+    uint32_t seen[64];
+    int nseen = 0;                 /* a moved word leaves the band, so a second call moves nothing twice */
+    int t, idx, moved = 0, parked = 0;
+    /* Positions (runs 20261105_013713_preplay7, _014116_preplay9): a line record's place is x | y << 16 - in its key
+     * P = [[D+0x64]+0x6C] (x 0xFEAC slide-in start, 0xFFF3 place; y 90 / 120 / 180 / 240 / 270 for lines 1..5), the
+     * selected / bar records inline in their K block, the bar's sparkles in its own sub-blocks. Lines 4 / 5: 90 up.
+     * Line 2 (now EXIT GAME): its value frame (y ~150, drawn by the label sprite itself, so alpha cannot hide it) far
+     * below the screen; the label at y 120 stays. */
+    for (t = 0; t < 5; t++)
+        for (idx = 0; idx < (t == 4 ? 6 : 12); idx++) {
+            int line = idx % 6, k, dup = 0;
+            uint32_t d;
+            if (line != 2 && line < 4) continue;
+            d = opt_find_data(GUEST32(k_t[t] + 4u * (uint32_t)idx), NULL);
+            if (!d) continue;
+            for (k = 0; k < nseen; k++) if (seen[k] == d) dup = 1;
+            if (dup) continue;
+            if (nseen < 64) seen[nseen++] = d;
+            if (++s_gen == 0) s_gen = 1;
+            /* Child records place themselves RELATIVE to their parent (run 20261105_014908_preplay13: the value frame
+             * 0x00140044 = 68 / 20 below the label), so moving a parent takes its children along and the frame is
+             * parked by its own small offset. Bands per line: the bar sits 23 above its row (line 4: 217, line 5: 247
+             * - inside line 4's label band, so each line's records get their own band). */
+            /* depth 2 = this record only (its children follow it) */
+            if (line == 2 && t != 3) {
+                /* the value text and the box drawn under it: the child [D+0x14] and its siblings (+0x0C; the
+                 * selected record's box is a sibling, run _015359_preplay16: 012FA570 -> 012FA6A8) */
+                uint32_t s, guard;
+                for (s = GUEST32(d + 0x14), guard = 0; s >= 0x00400000u && s < 0x04000000u && guard < 8;
+                     s = GUEST32(s + 0x0C), guard++)
+                    parked += pm_shift_rec(s, 10u, 40u, 600, 2);
+            } else if (line == 2) {
+                /* the bar record (0x3CF930): its FIRST child is the sparkle set every bar shares (moving it moved
+                 * the sparkles of all lines, run 20261105_015359_preplay16) - only the siblings after it, the
+                 * turquoise value box the bar lights up under AUF/AB, are parked */
+                uint32_t c = GUEST32(d + 0x14), s, guard;
+                for (s = c >= 0x00400000u && c < 0x04000000u ? GUEST32(c + 0x0C) : 0, guard = 0;
+                     s >= 0x00400000u && s < 0x04000000u && guard < 8; s = GUEST32(s + 0x0C), guard++)
+                    parked += pm_shift_rec(s, 10u, 40u, 600, 2);
+            }
+            else if (line == 4) moved += pm_shift_rec(d, 200u, 252u, -90, 2);
+            else moved += pm_shift_rec(d, 240u, 300u, -90, 2);
+        }
+    if (moved || parked) fprintf(stderr, "[PAUSE] rows 4/5 up: %d words, EXIT GAME's value frame parked: %d words\n",
+                                 moved, parked);
+    if (getenv("ORTA_DIAG_PAUSE")) {
+        static const struct { uint32_t tab; int idx; } k_w[2] = { { 0x003CF960u, 2 }, { 0x003CF930u, 2 } };
+        int w2;
+        for (w2 = 0; w2 < 2; w2++) {
+            uint32_t d = opt_find_data(GUEST32(k_w[w2].tab + 4u * (uint32_t)k_w[w2].idx), NULL), c, lvl, i;
+            for (c = d, lvl = 0; c >= 0x00400000u && c < 0x04000000u && lvl < 3; c = GUEST32(c + 0x14), lvl++) {
+                uint32_t k = GUEST32(c + 0x64);
+                fprintf(stderr, "[PMCHILD] %d lvl %u D %08X:", w2, lvl, c);
+                for (i = 0; i < 40; i++) fprintf(stderr, " %08X", GUEST32(c + 4 * i));
+                fprintf(stderr, "\n  K %08X:", k);
+                for (i = 0; k >= 0x00400000u && k < 0x04000000u && i < 40; i++) fprintf(stderr, " %08X", GUEST32(k + 4 * i));
+                fprintf(stderr, "\n");
+            }
+        }
+    }
+}
+
+static void pm_hide(uint32_t obj)
+{
+    static const uint32_t k_slot[3] = { 0x1C, 0x34, 0x4C };
+    int k;
+    for (k = 0; k < 3; k++) {
+        pm_alpha(GUEST32(obj + k_slot[k] + 4u * 2u), 1, 0.0f);   /* EXIT GAME: the value box under it */
+        pm_alpha(GUEST32(obj + k_slot[k] + 4u * 3u), 0, 0.0f);   /* VIBRATION: all of it */
+    }
+}
+
+/* EXIT GAME asks with the game's own dialog, as SPIEL BEENDEN does (maintainer 2026-11-05 ~02:05): sub_001C2490(msg, 0)
+ * opens it, sub_001C24C0() == -2 = answered, sub_001C24F0() = the answer (0 = JA, as the stock flow reads it),
+ * sub_001C2490(-1, 0) closes it (stock states 8 / 9). The box takes its text from the message table at the open
+ * (entry = sub_001AFE00(id), ecx = [0x47DF20]; string = [[entry+0xC]+0xC]): the text of message 0x10 (SPIEL BEENDEN's
+ * "back to the title without saving?") is swapped for ours just around the open. English in every language. */
+extern void sub_001AFE00(RECOMP_PARAMS);
+extern void sub_001C2490(RECOMP_PARAMS);
+extern void sub_001C24C0(RECOMP_PARAMS);
+extern void sub_001C24F0(RECOMP_PARAMS);
+static uint32_t s_pm_str_dialog;
+
+extern void sub_001B4B60(RECOMP_PARAMS);
+
+/* The message entries of id 0x10 point at our text (on) or back at the game's (off). */
+static void pm_dialog_text(int on)
+{
+    static uint32_t old[6], ent[6];
+    static int swapped;
+    const uint32_t id = 0x10u;
+    uint32_t k;
+    if (!ent[0]) {
+        ent[0] = 0x003D5E98u + 12u * id; ent[1] = 0x003D5FB8u + 12u * id; ent[2] = 0x003D60D8u + 12u * id;
+        ent[3] = 0x003D61F8u + 12u * id; ent[4] = 0x003D5C58u + 12u * (4u + 2u * id); ent[5] = 0x003D5C64u + 24u * id;
+    }
+    (void)s_pm_str_dialog;
+    if (on && !swapped) {
+        /* The stock text ends with its choices: "...\n\n%s0Ja%s0         %s1Nein%s1" (the box draws %s0 / %s1 as the
+         * two answers). Ours = the English question + that language's own choices, built once per entry. */
+        static uint32_t mine[6];
+        for (k = 0; k < 6; k++) {
+            old[k] = GUEST32(ent[k] + 8);
+            if (!(old[k] >= 0x00300000u && old[k] < 0x00400000u)) { old[k] = 0; continue; }
+            if (!mine[k]) {
+                char orig[160], txt[200];
+                const char *ch;
+                uint32_t j;
+                for (j = 0; j < sizeof orig - 1; j++) {
+                    orig[j] = (char)*(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + old[k] + j);
+                    if (!orig[j]) break;
+                }
+                orig[sizeof orig - 1] = 0;
+                ch = strstr(orig, "%s0");
+                snprintf(txt, sizeof txt, "Exit the game?\nUnsaved progress is lost.\n\n%s", ch ? ch : "");
+                mine[k] = xbox_HeapAlloc(200, 16);
+                if (mine[k]) {
+                    for (j = 0; j <= strlen(txt) && j < 199; j++)
+                        *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + mine[k] + j) = (uint8_t)txt[j];
+                }
+            }
+            if (mine[k]) GUEST32(ent[k] + 8) = mine[k];
+            else old[k] = 0;
+        }
+        swapped = 1;
+    } else if (!on && swapped) {
+        for (k = 0; k < 6; k++) if (old[k]) GUEST32(ent[k] + 8) = old[k];
+        swapped = 0;
+    }
+}
+
+/* A on EXIT GAME: what the stock does for a line with a dialog (0x1B4FC2): sound, the line's bar and selected sprites
+ * freed, sub_001B4B60(line) (the confirmed sprite), state 7 - whose end opens the dialog 0x3CFB48[line + 6 * variant]
+ * (patched to message 0x10 for line 2). The answer is read in state 8 before the stock acts on it. */
+static void pm_start_confirm(X86Ctx *ctx, uint8_t *base, uint32_t obj)
+{
+    uint32_t k;
+    GUEST32(0x003CFB48u + 4u * 2u) = 0x10u;
+    GUEST32(0x003CFB48u + 4u * 8u) = 0x10u;
+    mm_cdecl(ctx, base, sub_00012610, 2, 9u, 0x4Bu);
+    for (k = 0; k < 2; k++) {
+        uint32_t a = obj + (k ? 0x34u : 0x4Cu) + 4u * 2u, s = GUEST32(a);
+        if (s) { mm_cdecl(ctx, base, sub_001BAB20, 1, s, 0); GUEST32(a) = 0; }
+    }
+    /* sub_001B4B60(line) makes the "confirmed" sprite from 0x3CFB00[line] into +0x80 and sets its text
+     * (sub_001B3670(inst, line)) - line 2 has none there (0: the create returned 0 and the text call crashed, run
+     * 20261105_021821_pexit4), so the same with line 2's SELECTED record (0x3CF960[2 + 6 * value]: its place is row 2
+     * and its value frame is parked) */
+    if (!GUEST32(obj + 0x80)) {
+        uint32_t rec = GUEST32(0x003CF960u + 4u * (GUEST32(0x0034274Cu) ? 8u : 2u)), inst;
+        inst = mm_cdecl(ctx, base, sub_001BB610, 1, rec, 0);
+        GUEST32(obj + 0x80) = inst;
+        if (inst) {
+            extern void sub_001B3670(RECOMP_PARAMS);
+            opt_guest_call(ctx, base, sub_001B3670, obj, 2, inst, 2u);   /* thiscall, the callee pops its args */
+        }
+    }
+    GUEST32(obj + 0x134) = 7;
+    s_pm_confirm = 1;
+    fprintf(stderr, "[PAUSE] EXIT GAME? asked\n");
+}
+
+/* State 8 with our dialog up: answered (sub_001C24C0() == -2) with JA (sub_001C24F0() == 0, as the stock reads it)
+ * -> quit before the stock acts; NEIN -> the stock's own way back to the menu. */
+static void pm_dialog_answer(X86Ctx *ctx, uint8_t *base)
+{
+    uint32_t r = mm_cdecl(ctx, base, sub_001C24C0, 0, 0, 0), ans;
+    if (r != 0xFFFFFFFEu) return;                         /* not answered yet */
+    ans = mm_cdecl(ctx, base, sub_001C24F0, 0, 0, 0);
+    fprintf(stderr, "[PAUSE] EXIT GAME: %s\n", ans == 0 ? "yes" : "no");
+    if (ans == 0) {
+        extern void host_quit(void);
+        host_quit();
+    }
+    s_pm_confirm = 0;
+}
+
+static int pm_on(void)
+{
+    const char *e = getenv("ORTA_PAUSE_MENU");
+    return !(e && *e == '0');
+}
+
+void sub_001B4BA0(RECOMP_PARAMS)
+{
+    uint32_t obj = g_ecx;
+    static uint32_t last_st = 99;
+    uint32_t st = obj ? GUEST32(obj + 0x134) : 0;
+    if (obj && pm_on()) {
+        uint32_t in = GUEST32(PM_INPUT), keep = in, cur = GUEST32(obj + 0x138), ret;
+        pm_patch_texts();
+        if (st == 0) pm_move_rows();   /* before the open states create the line sprites */
+        if (st == 6) {
+            s_pm_confirm = 0;
+            if ((in & 0x02000000u) && cur == 2) GUEST32(obj + 0x138) = 3;      /* down over VIBRATION */
+            if ((in & 0x01000000u) && cur == 4) GUEST32(obj + 0x138) = 3;      /* up over VIBRATION */
+            if ((in & 0x0C000000u) && (cur == 2 || cur == 3)) in &= ~0x0C000000u;   /* no AUF/AB / VIBRATION toggles */
+            if ((in & 0x101u) && cur == 2) {
+                in = 0;                                   /* not the stock AUF/AB toggle */
+                pm_start_confirm(ctx, base, obj);         /* -> state 7, the stock's dialog way */
+            }
+        }
+        if (s_pm_confirm && GUEST32(obj + 0x134) == 7) pm_dialog_text(1);   /* the open at the end of state 7 */
+        if (s_pm_confirm && st == 8) pm_dialog_answer(ctx, base);
+        GUEST32(PM_INPUT) = in;
+        g_ecx = obj;
+        sub_001B4BA0_gen(ctx, base);
+        ret = g_eax;
+        GUEST32(PM_INPUT) = keep;
+        if (GUEST32(obj + 0x134) != 7) pm_dialog_text(0);
+        pm_hide(obj);
+        if (st != last_st) {
+            fprintf(stderr, "[PAUSE] state %u cursor %u last-line flag %u\n", st, GUEST32(obj + 0x138), GUEST32(obj + 0x178));
+            last_st = st;
+        }
+        g_eax = ret;
+        return;
+    }
+    if (obj && st != last_st) {
+        fprintf(stderr, "[PAUSE] state %u cursor %u last-line flag %u\n", st, GUEST32(obj + 0x138), GUEST32(obj + 0x178));
+        if (st == 6 && getenv("ORTA_DIAG_PAUSE")) {
+            static const uint32_t k_t[3] = { 0x003CF900u, 0x003CF960u, 0x003CF930u };
+            int t, idx;
+            for (t = 0; t < 3; t++)
+                for (idx = 0; idx < 12; idx++) {
+                    uint32_t id = GUEST32(k_t[t] + 4u * (uint32_t)idx), d = opt_find_data(id, NULL);
+                    fprintf(stderr, "[PMREC] table %d idx %d id 0x%X D %08X\n", t, idx, id, d);
+                    if (++s_gen == 0) s_gen = 1;
+                    if (d) pm_dump_words(d, 0, id);
+                }
+        }
+        last_st = st;
+    }
+    g_ecx = obj;
+    sub_001B4BA0_gen(ctx, base);
 }
 
 /* ── Options: new label records = clones of a stock value-less label (step 2 of the build plan) ─────────────────

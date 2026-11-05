@@ -57,6 +57,7 @@ add_executable(${PROJECT_NAME}
     src/recomp_manual.c
     src/input.c
     src/settings.c
+    src/vk_check.c
     src/platform/host_win32.c
     src/platform/apu_diag_win32.c
     ${RECOMP_GEN_SOURCES}
@@ -130,10 +131,15 @@ endif()
 # names, version and icon - no game code. Built into the build folder (not the layout); tools/release.ps1 appends
 # the payload to it. Model: THPS 2X.
 if(TARGET xbox_launcher)
-    add_executable(orta_launcher launcher/main.c)
+    # setup_win32.c: the setup window in the NG2 launcher's look (maintainer 2026-11-05) and the toolkit's progress
+    # UI (game_setup_ui.h) in the same look - its six functions replace game_setup_ui.c's at link time.
+    # src/vk_check.c: the Vulkan 1.3 check with the apology box (ORTA.exe uses the same file).
+    add_executable(orta_launcher launcher/main.c launcher/setup_win32.c src/vk_check.c)
+    target_include_directories(orta_launcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     if(WIN32)
         target_sources(orta_launcher PRIVATE assets/orta.rc)
         set_target_properties(orta_launcher PROPERTIES WIN32_EXECUTABLE ON)
+        target_link_libraries(orta_launcher PRIVATE comdlg32 shell32 ole32 gdi32 user32)
     endif()
     set_target_properties(orta_launcher PROPERTIES OUTPUT_NAME "Panzer Dragoon Orta Recomp"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/launcher")

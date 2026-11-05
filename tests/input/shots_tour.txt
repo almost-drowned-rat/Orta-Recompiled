@@ -2,18 +2,20 @@
 # against private\reference\menu_tour). Each shot sits a moment before the next input, so the screen has settled:
 # title -> START -> main menu -> OPTIONEN (TOP of the maintainer's layout) -> RECOMP OPTIONS -> back -> CONTROLS ->
 # BUTTON MAPPING -> back x2 -> SOUND -> back -> leave. shot=<name> -> <RECOMP_SHOT_PREFIX><name>.bmp (run folder).
+# 2026-11-05: main menu WEITER, NEUES SPIEL, PANDORAS BUECHSE, OPTIONEN, EXIT GAME (fresh saves: the cursor starts on
+# NEUES SPIEL, two downs reach OPTIONEN); OPTIONS TOP PRACTICE, ANZEIGE, SOUND, CONTROLS, RECOMP (four downs to RECOMP).
 37000:shot=01_title
 39000:start:200
 44000:shot=02_main_menu
 45000:down:200
 47000:down:200
-49000:down:200
 51000:shot=03_main_menu_options
 52000:a:200
 55000:shot=04_options_top
 56000:down:200
-58000:down:200
-60000:down:200
+57500:down:200
+59000:down:200
+60500:down:200
 62000:shot=05_options_top_recomp
 63000:a:200
 66000:shot=06_recomp_options

@@ -1,12 +1,12 @@
 # options_menu.txt - Orta (PAL): boot -> title -> START -> main menu -> OPTIONEN -> walk down its list.
 # Syntax (toolkit src/input/xinput_script.c): <ms>:<button>[+<button>...][:<hold ms>]; times from the first pad report.
-# ONE START at the title (a second confirms NEUES SPIEL); WEITER is skipped without a save, so three D-pad downs
-# reach OPTIONEN (NEUES SPIEL -> PANDORAS BÜCHSE -> ÜBUNG -> OPTIONEN). Then A, and down through the options list
-# slowly so the frame dumps catch every entry; no value is changed.
+# ONE START at the title (a second confirms NEUES SPIEL). Main menu since 2026-11-05: WEITER, NEUES SPIEL, PANDORAS
+# BUECHSE, OPTIONEN, EXIT GAME; on fresh saves the cursor starts on NEUES SPIEL and WEITER is skipped, so two D-pad
+# downs reach OPTIONEN. Then A, and down through the options list slowly so the frame dumps catch every entry; no
+# value is changed.
 39000:start:200
 45000:down:200
 47000:down:200
-49000:down:200
 52000:a:200
 57000:down:200
 60000:down:200

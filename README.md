@@ -12,7 +12,7 @@ settings menu inside the game.
 
 > **AI disclosure:**  AI assistance yes (Claude Code by Anthropic).
 
-> **Open beta (v0.6.0-beta):** playable, but not finished - it will be completed step by step over the next weeks.
+> **Open beta (v0.6.1-beta):** playable, but not finished - it will be completed step by step over the next weeks.
 > I expect bugs I have not found myself yet: please report every bug you find as an issue, I will try to fix each one
 > as fast as I can.
 
@@ -58,12 +58,20 @@ targets the USA version; this port is the PAL version and needs a GPU with Vulka
 - **Vulkan 1.3** renderer, **SDL3** for window, input and audio, plain **C** code.
 - The game's own sound engine runs on an emulated audio chip, with the game's own effects mix.
 
+### Rearranged menus
+- **Main menu:** CONTINUE, NEW GAME, PANDORA'S BOX, OPTIONS, **EXIT GAME** (asks before it quits). The practice
+  missions moved into OPTIONS.
+- **Pause menu:** CONTINUE, RETRY, **EXIT GAME** (asks with the game's own dialog), SAVE & QUIT, QUIT GAME - aiming
+  and vibration are set in OPTIONS only.
+- New lines are in English in every language; the game's own lines keep their language.
+
 ### Rearranged options menu
 Everything is set inside the game's own **OPTIONS** menu – no external tool, no overlay. **Y puts the selected line
-back to its default** - only that line.
+back to its default** - only that line. Every change is kept when you leave the menu, also after a restart.
 
 | Entry | What it does |
 |---|---|
+| **PRACTICE** | The game's practice missions (flying, aiming, dragon forms). |
 | **SOUND** | The game's own volumes. |
 | **CONTROLS** | AIMING (normal / inverted), VIBRATION and **BUTTON MAPPING** (keyboard or controller, then remap its buttons). |
 | **RECOMP OPTIONS** | All port settings (see below). |
@@ -98,9 +106,11 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 - **Nothing is written outside it:** no registry, no AppData, no shortcuts, no temp files left behind.
 
 ### Installer built in
-- Put your disc image into `game\` (or pick it with **Choose image...**) and start the game: it checks, extracts and
-  verifies the image itself. An image in `game\` is deleted afterwards; an image picked elsewhere stays where it is.
-- A wrong game or an unsupported version is refused with a clear message, and the image is kept.
+- A small setup window asks for two things: your disc image and the folder to install into. **Go** builds the game
+  there, **Play** starts it. Your disc image is only read - it is never changed or deleted.
+- The image is checked, extracted and verified; a wrong game or an unsupported version is refused with a clear
+  message.
+- No GPU with Vulkan 1.3? The setup and the game say so at once, with an apology, instead of crashing.
 
 ---
 
@@ -126,18 +136,22 @@ version(s): Europe. Please provide a supported version."*
 
 ### First start
 1. Download `Orta-Recompiled-v<version>-win64.zip` (about 210 MB, the compiler included) from the release page and
-   unpack it into an empty folder of your choice (keep the `tools\` folder next to the exe).
-2. Start `Panzer Dragoon Orta Recomp.exe`. It creates the folders below (each with a short `README.txt`) and asks for
-   the game: put your disc image (`.iso`, XISO or full redump image) **or** the extracted disc files into `game\`, or
-   click **Choose image...**.
-3. The first start then sets everything up, with a progress window:
+   unpack it (keep the `tools\` folder next to the exe).
+2. Start `Panzer Dragoon Orta Recomp.exe`. The setup window asks for your disc image (`.iso`, XISO or full redump
+   image) and the folder to install into (it suggests one). Press **Go**.
+3. The setup copies itself into that folder (with the folders below, each with a short `README.txt`) and sets
+   everything up there, the progress in the same window:
    - the image is checked, extracted and verified,
    - the compiler ([llvm-mingw](https://github.com/mstorsjo/llvm-mingw), a fixed release, in the zip's
      `tools\download\`) is checked by its SHA-256 and unpacked – only if that file is missing is it downloaded,
    - the game's code is translated and compiled on your PC (a few minutes, only once - about 4 on a 6-core
      laptop).
-4. The game starts. Later starts go straight into the game.
+4. Press **Play**. Later, start `Panzer Dragoon Orta Recomp.exe` in the install folder - it goes straight into the
+   game.
 5. Optional: add a boot video (see next section).
+
+Already have an extracted disc? Put the files (or one image) into `game\` next to the exe and start it there - it
+installs in place, as before.
 
 ### Updating from an earlier version
 Unpack the new zip over the old folder. The game is built once more at the next start (a few minutes); your
@@ -185,7 +199,8 @@ Panzer Dragoon Orta Recomp/
 
 ## Controls
 
-Gamepads work out of the box via SDL3 (incl. rumble). Keyboard default (physical key positions):
+Gamepads work out of the box via SDL3, with the game's own vibration (OPTIONS → CONTROLS → VIBRATION). Keyboard
+default (physical key positions):
 
 | Key | Xbox pad |
 |---|---|
@@ -231,6 +246,7 @@ delete the `bind.` lines from `saves\settings.ini`.
 
 - **v0.6.0-beta:** open beta - playable from the start (tested through the first episodes), the reworked options
   menu.
+- **v0.6.1-beta:** setup window, rearranged main and pause menus with EXIT GAME, vibration, options kept on leaving.
 - **Next weeks:** bug fixes from your reports, then v1.0.
 - **Later:** 120 fps (the game's logic decoupled from the frame rate).
 

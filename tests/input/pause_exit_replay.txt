@@ -1,0 +1,24 @@
+# pause_exit_replay.txt - Orta (PAL): the maintainer's session 2026-11-05 01:23 up to the pause menu (as
+# pause_menu_replay.txt, -SavesFrom private\snapshots\20261105_pause_session_start\saves), then down x2 -> EXIT GAME,
+# A -> the game's own dialog "Exit the game?" (JA / NEIN on NEIN, like SPIEL BEENDEN's), A on NEIN -> back to the
+# menu, A -> asked again, left (JA) -> A: the game ends by itself ("[PAUSE] EXIT GAME: yes", exit 0 before the limit).
+f625:p1-start:9
+f705:p1-start:6
+f826:p1-start:8
+f897:p1-start:7
+f983:p1-start:10
+f1151:p1-start:8
+f1300:p1-start:9
+f1463:p1-start:7
+f2514:p1-start:5
+f3118:p1-down:5
+f3413:p1-down:6
+f3500:shot=01_exit_game
+f3560:p1-a:6
+f3680:shot=02_dialog
+f3720:p1-a:6
+f3820:shot=03_after_no
+f3880:p1-a:6
+f3980:p1-left:6
+f4040:shot=04_dialog_yes
+f4080:p1-a:6

@@ -1,0 +1,18 @@
+# main_menu_exit.txt - Orta (PAL), fresh saves: main menu -> up (wraps from NEUES SPIEL to EXIT GAME; WEITER skipped
+# without a save) -> A -> "EXIT GAME?" YES / NO (cursor on NO) -> down (YES) -> up (NO) -> B (back) -> A -> down (YES) ->
+# A: the game ends by itself (expected exit 0 well before the run's limit, "[MENU] EXIT GAME: yes").
+37000:shot=01_title
+39000:start:200
+44000:up:200
+45500:shot=02_exit_game
+46000:a:200
+48000:shot=03_confirm_no
+49000:down:200
+50500:shot=04_confirm_yes
+51000:up:200
+52000:b:200
+53500:shot=05_back
+54000:a:200
+55500:down:200
+57000:shot=06_yes
+57500:a:200

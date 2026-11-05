@@ -9,14 +9,15 @@ Open beta: the port is playable but not finished yet. Expect bugs I have not fou
 as issues on GitHub, I will try to fix every reported bug as fast as I can.
 
 Start:
-  1. Unpack this zip into an empty folder (keep the tools\ folder next to the exe) and start
-     'Panzer Dragoon Orta Recomp.exe'.
-  2. It creates its folders and asks for the game: put your disc image (.iso) or the extracted disc files
-     into game\ - or click 'Choose disc image...'.
-  3. The first start needs no internet: the compiler (llvm-mingw, in tools\download\, checked by its
-     SHA-256) is unpacked, then the game's code is translated and compiled on your PC - a few GB of disk
-     space and some minutes. Then the game starts; later starts go straight into the game.
-     Only if tools\download\ is missing is the compiler downloaded (about 190 MB).
+  1. Unpack this zip (keep the tools\ folder next to the exe) and start 'Panzer Dragoon Orta Recomp.exe'.
+  2. The setup window asks for two things: your disc image (.iso) and the folder to install into.
+     Press Go.
+  3. No internet needed: the compiler (llvm-mingw, in tools\download\, checked by its SHA-256) is copied
+     along and unpacked, then the game's code is translated and compiled on your PC - a few GB of disk
+     space and some minutes. Then press Play. Later, start 'Panzer Dragoon Orta Recomp.exe' in the install
+     folder - it goes straight into the game. Only if tools\download\ is missing is the compiler downloaded
+     (about 190 MB).
+  Your disc image is only read; it is never changed or deleted.
 
 Requirements: a GPU with Vulkan 1.3; your own Panzer Dragoon Orta (Europe) disc
 (default.xbe SHA-1 57213FF35A19807DEF664F9018CC2923815DFA1F). Other versions (USA, Japan) are not supported.

@@ -25,6 +25,8 @@
 #include "input.h"
 #if defined(ORTA_VULKAN)
 #include "nv2a_vk.h"
+#include "vk_check.h"
+#include <SDL3/SDL.h>
 #endif
 #if defined(ORTA_INSTALLER)
 #include <string.h>
@@ -138,6 +140,25 @@ int main(int argc, char **argv)
     /* the port's window / taskbar icon (assets/icon_64.bmp -> port_icon.h), before the first window (installer) */
     xbox_set_window_icon(g_port_icon_bmp, sizeof g_port_icon_bmp);
 
+#if defined(ORTA_VULKAN)
+    /* No Vulkan 1.3 device: a polite message box and out, before the installer or a window (maintainer
+     * 2026-11-04; the launcher asks the same, src/vk_check.c). The toolkit's own device check stays behind it as
+     * the last line. Headless runs (RECOMP_VK_HEADLESS=1) skip it; RECOMP_NO_DIALOGS=1 logs only. */
+    {
+        const char *hl = getenv("RECOMP_VK_HEADLESS"), *nd = getenv("RECOMP_NO_DIALOGS");
+        char found[1024], msg[1600];
+        if (!(hl && *hl == '1') && !orta_vk_check(found, sizeof found)) {
+            orta_vk_message(msg, sizeof msg, found);
+            fprintf(stderr, "[VK] no Vulkan 1.3 device: %s\n", found);
+            if (!(nd && *nd == '1'))
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Panzer Dragoon Orta Recomp", msg, NULL);
+            return 1;
+        }
+        if (!(hl && *hl == '1'))
+            printf("[VK] devices: %s\n", found);
+    }
+#endif
+
 #if defined(ORTA_INSTALLER)
     if (!orta_game_setup(opt.game_dir))
         return 1;
@@ -213,8 +234,11 @@ int main(int argc, char **argv)
      * saves\settings.ini (bind.keyboard, bind.pad.<GUID>), forced with ORTA_BIND_KEYBOARD / ORTA_BIND_PAD_<GUID> /
      * ORTA_BIND_PAD, ORTA_BIND_RESET=1 ignores the stored ones (emergency exit). Model: THPS 2X main.c. */
     xbox_InputBindSetStore(settings_get, settings_set, "ORTA_BIND");
-    if (*getenv("RECOMP_USB") != '0')
-        xbox_OhciInit();
+    /* xbox_OhciInit (the USB controller model) moved below the boot animation: its thread gives up when the title's
+     * driver has not started the controller within 1500 ticks of 4 ms = 6 s (toolkit ohci.c, OHCI_TICK_MS; its
+     * comment says 30 s), and media\boot.mpg plays 11.6 s before the title starts - so with a boot video no pad and
+     * no key ever reached the game (maintainer's session 2026-11-05 02:42; run 20261105_025018_bootusb1: no
+     * "[OHCI0] operational" line). */
 
     /* The PAL disc's console settings (toolkit xbox_settings.h). Without a game region XAPI's start-up check
      * quick-rebooted at once (run 20261101_114630_m1_sem: HalReturnToFirmware(2) from sub_0022DA5C, launch
@@ -289,6 +313,9 @@ int main(int argc, char **argv)
     /* TODO (M2): wrap the title's D3D fence wait in recomp_manual.c and register
      * its GPU semaphore (porting_guide.md, M2). */
 #endif
+    /* the USB controller model, after the boot animation and before the title (see above) */
+    if (*getenv("RECOMP_USB") != '0')
+        xbox_OhciInit();
 
     g_esp = XBOX_STACK_TOP;
     xbox_diag_ctx_set(ctx);   /* the crash handler and watchdog read this set */

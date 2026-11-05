@@ -1,0 +1,44 @@
+# pause_menu.txt - Orta (PAL), fresh saves: first_level.txt up to gameplay, then START = the pause menu (held a bit
+# longer; a short START at 136 s did not pause in run 20261105_010536_pause1), shots, down through its lines with a
+# shot each. For the pause-menu rework (EXIT GAME before SPEICHERN & ENDE, AUF/AB and VIBRATION out; maintainer
+# 2026-11-04/05; docs/menu_rework.md).
+39000:start:200
+42000:start:200
+45000:start:200
+52000:a:200
+58000:a:200
+64000:start:200
+66000:a:200
+70000:start:200
+72000:a:200
+76000:start:200
+78000:a:200
+82000:start:200
+84000:a:200
+88000:start:200
+90000:a:200
+94000:start:200
+96000:a:200
+100000:start:200
+102000:a:200
+106000:start:200
+108000:a:200
+112000:start:200
+114000:a:200
+118000:start:200
+120000:a:200
+135000:shot=01_gameplay
+136000:start:400
+138000:shot=02_pause
+140000:back:400
+142000:shot=03_after_back
+144000:start:600
+146000:shot=04_pause_b
+147000:down:200
+148500:shot=05_pause_down1
+149000:down:200
+150500:shot=06_pause_down2
+151000:down:200
+152500:shot=07_pause_down3
+153000:down:200
+154500:shot=08_pause_down4

@@ -1,0 +1,32 @@
+# pause_menu_replay.txt - Orta (PAL): the maintainer's session 2026-11-05 01:23 (keyboard), replayed from the saves
+# it started with (tools\run.ps1 -SavesFrom private\snapshots\20261105_pause_session_start\saves): title -> START ->
+# main menu on WEITER -> START (load) -> gameplay -> START = pause menu -> down x5 (every line) -> up x5 -> START back.
+# Base f = guest vblanks (pad recorder, toolkit 5986e9d); shots at the pause menu's steps.
+f625:p1-start:9
+f705:p1-start:6
+f826:p1-start:8
+f897:p1-start:7
+f983:p1-start:10
+f1151:p1-start:8
+f1300:p1-start:9
+f1463:p1-start:7
+f2514:p1-start:5
+f2900:shot=01_pause
+f3118:p1-down:5
+f3300:shot=02_down1
+f3413:p1-down:6
+f3500:shot=03_down2
+f3564:p1-down:7
+f3620:shot=04_down3
+f3662:p1-down:10
+f3720:shot=05_down4
+f3758:p1-down:10
+f3820:shot=06_down5
+f3863:p1-up:8
+f3941:p1-up:7
+f4030:p1-up:6
+f4123:p1-up:7
+f4336:p1-up:9
+f4500:shot=07_top_again
+f4685:p1-start:7
+f4900:shot=08_back_in_game

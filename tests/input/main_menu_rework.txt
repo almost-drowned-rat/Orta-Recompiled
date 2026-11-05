@@ -1,0 +1,34 @@
+# main_menu_rework.txt - Orta (PAL): the maintainer's main menu (2026-11-04/05; docs/menu_rework.md) on a FRESH save
+# folder: WEITER, NEUES SPIEL, PANDORAS BUECHSE, OPTIONEN, EXIT GAME; without a save the cursor starts on NEUES SPIEL
+# and WEITER is skipped. Down x3 -> EXIT GAME, A -> "EXIT GAME?" YES / NO on NO, down -> YES, up -> NO, A (no) -> the
+# menu again on EXIT GAME, up -> OPTIONEN, A -> OPTIONS with PRACTICE as the first line, A on PRACTICE -> back to the
+# main menu -> the practice (UEBUNG) starts.
+# Syntax (toolkit src/input/xinput_script.c): <ms>:<button>[+<button>...][:<hold ms>]; shot=<name>.
+37000:shot=01_title
+39000:start:200
+44000:shot=02_menu_neues_spiel
+45000:down:200
+46500:shot=03_pandora
+47000:down:200
+48500:shot=04_optionen
+49000:down:200
+50500:shot=05_exit_game
+51000:down:200
+52500:shot=06_wrap_skips_weiter
+53000:up:200
+54500:shot=07_exit_game_again
+55000:a:200
+57000:shot=08_exit_confirm_no
+58000:down:200
+59500:shot=09_exit_confirm_yes
+60000:up:200
+61500:shot=10_exit_confirm_no_again
+62000:a:200
+64000:shot=11_menu_back_exit
+65000:up:200
+66500:shot=12_optionen_again
+67000:a:200
+71000:shot=13_options_practice
+72000:a:200
+78000:shot=14_after_practice
+84000:shot=15_practice
