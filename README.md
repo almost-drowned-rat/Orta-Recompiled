@@ -12,8 +12,7 @@ settings menu inside the game.
 
 > **AI disclosure:**  AI assistance yes (Claude Code by Anthropic).
 
-> **v0.9.0:** playable and tested through episode 4, but not finished yet - the last steps to v1.0 follow.
-> I expect bugs I have not found myself yet: please report every bug you find as an issue, I will try to fix each one
+> **v0.9.0:** I expect bugs I have not found myself yet: please report every bug you find as an issue, I will try to fix each one
 > as fast as I can.
 
 ---
