@@ -238,7 +238,6 @@ delete the `bind.` lines from `saves\settings.ini`.
 
 - The dragon's red special effect does not tint the whole picture: its edge shows a staircase of blocks - under
   investigation.
-- Episodes 5 and later are not tested through yet.
 - 120 fps comes later (the game logic runs at its original 60).
 - The Sega Saturn *Panzer Dragoon* in Pandora's Box is not part of this port (selecting it shows a message).
 - The game has no custom soundtracks.
