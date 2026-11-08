@@ -12,7 +12,7 @@ settings menu inside the game.
 
 > **AI disclosure:**  AI assistance yes (Claude Code by Anthropic).
 
-> **Open beta (v0.6.1-beta):** playable, but not finished - it will be completed step by step over the next weeks.
+> **v0.9.0:** playable and tested through episode 4, but not finished yet - the last steps to v1.0 follow.
 > I expect bugs I have not found myself yet: please report every bug you find as an issue, I will try to fix each one
 > as fast as I can.
 
@@ -72,7 +72,7 @@ back to its default** - only that line. Every change is kept when you leave the 
 | Entry | What it does |
 |---|---|
 | **PRACTICE** | The game's practice missions (flying, aiming, dragon forms). |
-| **SOUND** | The game's own volumes. |
+| **SOUND** | The game's own volumes, and **SPEAKERS**: stereo or 5.1 (the game's own surround mix; applies after a restart, needs a 5.1 output device). |
 | **CONTROLS** | AIMING (normal / inverted), VIBRATION and **BUTTON MAPPING** (keyboard or controller, then remap its buttons). |
 | **RECOMP OPTIONS** | All port settings (see below). |
 
@@ -83,16 +83,20 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 |---|---|
 | **Display mode** | Borderless (default), Fullscreen (exclusive), Windowed – window size and position are remembered |
 | **Render resolution** | From the original 480 lines up to 5x (e.g. 1080p, 1440p, 4K) – independent of the window size |
-| **Aspect ratio** | 4:3 or 16:9 – the game's own widescreen mode (wider view), not stretched |
+| **Aspect ratio** | 4:3, 16:9, 16:10 or 21:9 – 16:9 is the game's own widescreen mode; 16:10 and 21:9 widen the view further, the HUD moves to the screen edges; never stretched |
+| **Field of view** | Original, or wider by +5 up to +30 |
 | **Anisotropic filter** | Off up to 16x |
 | **Antialiasing** | Off, FXAA (default), SMAA, MSAA 2x, MSAA 4x |
-| **Frame rate** | V-Sync and an FPS counter (FPS, frame time or both); the game runs at its original 60 fps |
+| **Frame rate** | V-Sync, **frame pacing** (DISPLAY = in step with your monitor, TIMER = a steady 60 Hz timer) and an FPS counter (FPS, frame time or both); the game runs at its original 60 fps |
 | **Boot animation** | Plays your own intro video before the game, for example the original Xbox boot animation ;) |
 | **Language** | System (follows Windows), English, German, French, Spanish, Italian |
 | **Brightness and contrast** | The game's own brightness and contrast, now visible on the PC screen |
 
-### Widescreen (16:9)
+### Widescreen (16:9, 16:10, 21:9)
 - Panzer Dragoon Orta has its own 16:9 mode; ASPECT RATIO 16:9 switches the game to it - menus included.
+- 16:10 and 21:9 build on it: more of the world at the sides, the HUD (health, gauges, radar) at the screen edges,
+  text lines kept whole.
+- The mouse cursor hides itself over the game window after 2 seconds without movement.
 - The game arranges some screens differently at 4:3 and 16:9 (e.g. the options background: a dense cloud layer at
   4:3, a large relief with thin clouds at 16:9) - both are the game's own layouts.
 
@@ -233,9 +237,10 @@ delete the `bind.` lines from `saves\settings.ini`.
 
 ## Known issues
 
-- In some fast scenes of episode 2 the picture can look smeared, as if frames ran into each other - under
+- The dragon's red special effect does not tint the whole picture: its edge shows a staircase of blocks - under
   investigation.
-- The lock-on markers are not confirmed against the original yet.
+- Episodes 5 and later are not tested through yet.
+- 120 fps comes later (the game logic runs at its original 60).
 - The Sega Saturn *Panzer Dragoon* in Pandora's Box is not part of this port (selecting it shows a message).
 - The game has no custom soundtracks.
 - The exe is not signed (see *Windows warning* above).
@@ -247,7 +252,9 @@ delete the `bind.` lines from `saves\settings.ini`.
 - **v0.6.0-beta:** open beta - playable from the start (tested through the first episodes), the reworked options
   menu.
 - **v0.6.1-beta:** setup window, rearranged main and pause menus with EXIT GAME, vibration, options kept on leaving.
-- **Next weeks:** bug fixes from your reports, then v1.0.
+- **v0.9.0:** 16:10 / 21:9, field of view, frame pacing, 5.1 sound; water and Pandora's Box background fixed; the
+  freeze at the end of episode 3 fixed; less memory.
+- **Next:** bug fixes from your reports, then v1.0; the USA version.
 - **Later:** 120 fps (the game's logic decoupled from the frame rate).
 
 ### Non-goals

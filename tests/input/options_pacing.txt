@@ -1,0 +1,30 @@
+# options_pacing.txt - Orta (PAL) RECOMP OPTIONS > FRAME RATE > FRAME PACING (night order 2026-11-07, item 3):
+# boot -> title -> START -> main menu -> OPTIONEN -> TOP down x4 -> RECOMP OPTIONS -> A, down x6 (FRAME RATE) -> A ->
+# its list (FRAME RATE, FRAME PACING, VSYNC, FPS COUNTER), down (FRAME PACING) -> shot (DISPLAY), right (60 HZ TIMER
+# - RESTART) -> shot, B -> RECOMP on FRAME RATE, B -> RESTART NEEDED, down (LATER), A -> TOP, B leaves and saves
+# (settings.ini frame_pacing=timer; the next start logs "frame pacing: 60 Hz timer").
+39000:start:200
+45000:down:200
+47000:down:200
+52000:a:200
+56000:down:200
+58000:down:200
+60000:down:200
+61500:down:200
+63000:a:200
+66000:down:200
+67000:down:200
+68000:down:200
+69000:down:200
+70000:down:200
+71000:down:200
+73000:a:200
+76000:down:200
+78000:shot=01_pacing_display
+79000:right:200
+81000:shot=02_pacing_timer
+82000:b:200
+85000:b:200
+88000:down:200
+90000:a:200
+93000:b:200

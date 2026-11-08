@@ -1,11 +1,11 @@
-Panzer Dragoon Orta Recompiled v{VERSION} - OPEN BETA (Windows 10/11, 64-bit)
+Panzer Dragoon Orta Recompiled v{VERSION} (Windows 10/11, 64-bit)
 
 A static recompilation of Panzer Dragoon Orta (Xbox, Europe / PAL) into native PC code with a Vulkan renderer.
 This download contains no game data, no game code and no keys. You need your own copy of the game (PAL disc).
 
 AI disclosure:  AI assistance yes (Claude Code by Anthropic).
 
-Open beta: the port is playable but not finished yet. Expect bugs I have not found myself - please report them
+The port is playable (tested through episode 4) but not finished yet. Expect bugs I have not found myself - please report them
 as issues on GitHub, I will try to fix every reported bug as fast as I can.
 
 Start:

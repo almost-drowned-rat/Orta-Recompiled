@@ -131,7 +131,7 @@ endif()
 # names, version and icon - no game code. Built into the build folder (not the layout); tools/release.ps1 appends
 # the payload to it. Model: THPS 2X.
 if(TARGET xbox_launcher)
-    # setup_win32.c: the setup window in the NG2 launcher's look (maintainer 2026-11-05) and the toolkit's progress
+    # setup_win32.c: the setup window in another port's launcher look (maintainer 2026-11-05) and the toolkit's progress
     # UI (game_setup_ui.h) in the same look - its six functions replace game_setup_ui.c's at link time.
     # src/vk_check.c: the Vulkan 1.3 check with the apology box (ORTA.exe uses the same file).
     add_executable(orta_launcher launcher/main.c launcher/setup_win32.c src/vk_check.c)

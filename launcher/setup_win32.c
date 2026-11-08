@@ -1,6 +1,6 @@
 /* setup_win32.c -- the setup window of "Panzer Dragoon Orta Recomp.exe" in the look of the Ninja Gaiden 2 launcher
- * (maintainer 2026-11-04/05: the Orta launcher takes over the NG2 launcher's design; NinjaGaiden2-Recompiled
- * launcher/ng2_launcher.cpp): Windows 95 style, drawn with plain GDI - grey #C0C0C0 face, 3D bevels, a navy title bar with white bold
+ * (maintainer 2026-11-04/05: the Orta launcher takes over the design of another port's
+ * launcher): Windows 95 style, drawn with plain GDI - grey #C0C0C0 face, 3D bevels, a navy title bar with white bold
  * text, MS Sans Serif (a system font, not shipped), a blocky progress bar. Only the style; no Microsoft graphics.
  *
  * Orta needs two lines (no patches, no DLC): the disc image and the folder to install to, then Go. Go copies this
@@ -38,7 +38,7 @@
 #define SETUP_TITLE L"Panzer Dragoon Orta Recomp Setup"
 #define SETUP_EXE   L"Panzer Dragoon Orta Recomp.exe"
 
-/* Windows 95 palette (NG2 launcher) */
+/* Windows 95 palette */
 #define C_FACE       RGB(192, 192, 192)
 #define C_LIGHT      RGB(255, 255, 255)
 #define C_SHADOW     RGB(128, 128, 128)
@@ -56,7 +56,7 @@ enum { ID_ISO = 100, ID_TARGET, ID_BROWSE_ISO = 200, ID_BROWSE_TARGET, ID_GO = 3
 static HFONT  g_font, g_bold, g_marlett;
 static HBRUSH g_face_brush;
 
-/* ── drawing (NG2 launcher Bevel / Text / DrawButton, in C) ───────────────────────────────────────────────────── */
+/* ── drawing (Bevel / Text / DrawButton, in C)───────────────────────────────────────────────────── */
 
 static void line_c(HDC dc, int x0, int y0, int x1, int y1, COLORREF c)
 {
@@ -253,7 +253,7 @@ static void box(HWND owner, const wchar_t *text, UINT icon)
 
 /* The player's media\README.txt, written before the toolkit's launcher runs (it writes its own only when the file is
  * missing): Orta has no custom soundtracks and no shader module, and the boot animation stays 1080p60 (maintainer
- * 2026-11-04/05, as the NG2 launcher and Orta's README) - the toolkit text says 720p30. */
+ * 2026-11-04/05, as Orta's README) - the toolkit text says 720p30. */
 static void write_media_readme(const wchar_t *target)
 {
     static const char text[] =

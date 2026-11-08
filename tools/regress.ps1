@@ -31,7 +31,9 @@ $parts = @(
     @{ name = "menu_tour";   script = "main_menu.txt";    seconds = 100; min_frames = 5000 },
     @{ name = "options";     script = "options_menu.txt"; seconds = 90;  min_frames = 4500 },
     @{ name = "pandora";     script = "pandoras_box.txt"; seconds = 90;  min_frames = 4500 },
-    @{ name = "first_level"; script = "first_level.txt";  seconds = 200; min_frames = 10000 }
+    # the maintainer's recorded way into episode 1, then no input, infinite health (maintainer 2026-11-08: no START /
+    # A spam, no game over - comparable runs); was first_level.txt
+    @{ name = "first_level"; script = "level1_idle_shots.txt"; seconds = 200; min_frames = 10000; env = "ORTA_CHEAT_HEALTH=1" }
 )
 $lines = @()
 function Say([string]$s) { Write-Host $s; $script:lines += $s }
@@ -39,8 +41,10 @@ function Say([string]$s) { Write-Host $s; $script:lines += $s }
 foreach ($p in $parts) {
     if ($Only.Count -and $Only -notcontains $p.name) { continue }
     $before = @(Get-ChildItem (Join-Path $Private "runs") -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+    $envArg = @()
+    if ($p.env) { $envArg = @("-Env", $p.env) }
     powershell -ExecutionPolicy Bypass -File (Join-Path $Repo "tools\run.ps1") -Name "regress_$($p.name)" `
-        -Seconds $p.seconds -Script (Join-Path $Repo "tests\input\$($p.script)") | Out-Null
+        -Seconds $p.seconds -Script (Join-Path $Repo "tests\input\$($p.script)") @envArg | Out-Null
     $run = Get-ChildItem (Join-Path $Private "runs") -Directory | Where-Object { $before -notcontains $_.FullName -and
         $_.Name -like "*_regress_$($p.name)" } | Sort-Object Name | Select-Object -Last 1
     if (-not $run) { Say ("{0,-12} FAIL  no run folder" -f $p.name); continue }

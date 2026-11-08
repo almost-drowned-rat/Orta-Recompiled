@@ -1,5 +1,5 @@
 /* vk_check.c -- see vk_check.h. The few Vulkan types are declared here with the layouts the spec fixes, so the
- * launcher needs no Vulkan headers or import library (model: the NinjaGaiden2-Recompiled launcher's VulkanAvailable).
+ * launcher needs no Vulkan headers or import library (model: another port's launcher check).
  * The requirement list mirrors the toolkit's vk_device_ok (option-c nv2a_vk.c); keep both in step. */
 #include "vk_check.h"
 

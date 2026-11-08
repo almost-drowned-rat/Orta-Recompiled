@@ -1,0 +1,60 @@
+# options_render_aspect.txt - Orta (PAL) RENDER RESOLUTION follows the SAVED aspect, ASPECT RATIO AND FOV sub-list
+# (night order 2026-11-07, items 2, 4, 5; THPS 2X v1.2.0). boot -> title -> START -> main menu -> OPTIONEN -> TOP down
+# x4 -> RECOMP OPTIONS -> A, down x2 (RENDER RESOLUTION) -> shot 02 (640X480), right -> shot 03 (800X600), down (ASPECT
+# RATIO AND FOV) -> A -> its list: shot 04 (ASPECT RATIO: 4:3, FIELD OF VIEW: ORIGINAL), right (16:9 - RESTART), down
+# (FIELD OF VIEW), right x2 (10) -> shot 05, B -> RECOMP on the sub-list line, up (RENDER) -> shot 06 (854X480), right
+# -> shot 07 (1280X720), down, A, right (16:10) -> B, up -> shot 08 (1152X720), down, A, right (21:9), B, up -> shot 09
+# (1707X720), down, A, left x3 (4:3), down, Y (FIELD OF VIEW back to ORIGINAL), B, up -> shot 10 (800X600), B -> TOP
+# (nothing pending), B leaves and saves.
+37000:shot=01_title
+39000:start:200
+45000:down:200
+47000:down:200
+52000:a:200
+56000:down:200
+58000:down:200
+60000:down:200
+61500:down:200
+63000:a:200
+66000:down:200
+68000:down:200
+70000:shot=02_render_43
+71000:right:200
+73000:shot=03_render_43_step
+74000:down:200
+76000:a:200
+79000:shot=04_view_list
+80000:right:200
+82000:down:200
+83000:right:200
+84000:right:200
+86000:shot=05_view_169_fov10
+87000:b:200
+90000:up:200
+92000:shot=06_render_169_listed
+93000:right:200
+95000:shot=07_render_169_step
+96000:down:200
+98000:a:200
+101000:right:200
+103000:b:200
+106000:up:200
+108000:shot=08_render_1610
+109000:down:200
+111000:a:200
+114000:right:200
+116000:b:200
+119000:up:200
+121000:shot=09_render_219
+122000:down:200
+124000:a:200
+127000:left:200
+128000:left:200
+129000:left:200
+131000:down:200
+133000:y:200
+135000:b:200
+138000:up:200
+140000:shot=10_render_43_back
+141000:b:200
+145000:b:200

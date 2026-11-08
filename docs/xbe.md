@@ -25,7 +25,7 @@ default.xbe SHA-256: `0776e8607d820c4e359a8059cad3aabe30629abdd13dbc33553151e435
 | id | version | image | state |
 |---|---|---|---|
 | `pal` | Europe (PAL), 6 text languages | `Panzer Dragoon Orta (Europe).iso` | the supported version |
-| `us` | USA (NTSC), **title ID 0x53450007**, XDK **4928**, built 2002-11-18, default.xbe SHA-1 B9E64BC1554EFCA9FCBBDA4AA4A0C11CF5684241 | `Panzer Dragoon Orta (USA).iso` (full redump) | not supported (Orta is PAL only); its variant was removed 2026-11-04 |
+| `us` | USA (NTSC), **title ID 0x53450007**, XDK **4928**, built 2002-11-18, default.xbe SHA-1 B9E64BC1554EFCA9FCBBDA4AA4A0C11CF5684241 | `Panzer Dragoon Orta (USA).iso` (full redump) | not supported yet (variant removed 2026-11-04); US port starts by Tue 2026-11-10 11:30, M0 data below |
 | `jp` | Japan (NTSC-J), first release Dec 2002 | missing | – |
 
 ## XDK libraries
@@ -60,6 +60,36 @@ bonus game, see below), `IdexChannelObject`, `MmClaimGpuInstanceMemory`, `KeConn
   OPTIONS with the languages the game itself offers (check whether JP is selectable on this PAL disc in M3).
 - **Pandora's Box bonus content:** `PD1.xbe` (8.5 MB, a second XBE = the Sega Saturn *Panzer Dragoon* emulation,
   path string `d:\pd1.xbe` in default.xbe), `p1media/` (its movies + `bgm*.wma`), `pd1_dra.*`.
+
+## US version (USA, NTSC) - M0 data, 2026-11-08
+
+Source: toolkit option-c `tools.xiso` / `tools.xbe_parser` on `Panzer Dragoon Orta (USA).iso` (read only); output in
+`private\m0_us\` (`files.txt`, `default.xbe`, `xbe.json`, `xbe_info.txt`), never committed. Not lifted yet.
+
+| Field | PAL | US |
+|---|---|---|
+| Title ID | 0x4947002B | **0x53450007** |
+| Region flag | Rest of World | North America |
+| default.xbe SHA-1 | 57213FF35A19807DEF664F9018CC2923815DFA1F | **B9E64BC1554EFCA9FCBBDA4AA4A0C11CF5684241** |
+| default.xbe SHA-256 | 0776e860...c26d | c1af4eafccc02e11105d606b177263216cb7aa71bf1fbe8486ddfc3b1b848d2c |
+| Size | 4,292,608 | 4,284,416 |
+| Build / cert date | 2003-01-17 / 2003-01-29 | 2002-11-18 / 2002-12-03 |
+| XDK (all 9 libraries) | 1.0.5028 | **1.0.4928** |
+| Image size | 0x004C2700 | 0x00508E60 |
+| Entry point | 0x00232A9B | 0x00231E6C |
+| Kernel thunks | 0x003094C0 | 0x0030C8A0 |
+| Kernel imports | 116 | 115 (no `IdexChannelObject`) |
+| Game ratings | 0x0 | 0x3 |
+| Text languages (`*.msg`) | EN FR GE IT SP JP | **EN JP** |
+| Disc files | 3,004 | 2,451 (no FR / GE / IT / SP assets) |
+
+- **Sections:** the same 16 names in the same order, but every address and most sizes differ (`.text` 0x29B070 vs
+  0x297D40, `APPDATA` virtual 0x1CEBDC vs 0x18847C, `.rdata` 0x34044 vs 0x37430). Nothing address-bound carries over:
+  every override in `src/` needs its US address (mapping plan: `private\m0_us`).
+- **XDK 4928** instead of 5028: anything matched by XDK version or byte signature has to be checked for 4928.
+- Same movies (13 `.sfd`), music (408 `.wav`, 18 `.wma`) and `PD1.xbe` / `pd1_dra.*` bonus files as PAL.
+- Multi-version rule: variant `us` beside `pal` in one dev exe; the player's launcher lifts only his version. The US
+  LANGUAGE line offers EN / JP only.
 
 ## Saturn bonus game (maintainer decision, 2026-11-01)
 

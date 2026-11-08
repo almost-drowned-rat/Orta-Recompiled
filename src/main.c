@@ -116,6 +116,31 @@ int main(int argc, char **argv)
      * saved value becomes its default here (an explicit RECOMP_VSYNC still wins); a change needs a restart. */
     if (!strcmp(settings_get("vsync", "on"), "off"))
         host_setenv_default("RECOMP_VSYNC", "0");
+    /* RECOMP OPTIONS > FRAME RATE > FRAME PACING (frame_pacing=display|timer; port guideline 2026-11-05, THPS 2X
+     * v1.1.0): DISPLAY (default) = the guest vblank follows a 120 / 180 / 240 Hz display's own vblank (toolkit
+     * host_vblank); 60 HZ TIMER = the old clock. Read once by the kernel at start. */
+    if (!strcmp(settings_get("frame_pacing", "display"), "timer"))
+        host_setenv_default("RECOMP_FRAME_PACING", "timer");
+    /* FRAME RATE 120 (night order 2026-11-07): the guest vblank at 120 Hz (toolkit RECOMP_GUEST_HZ); the game's
+     * frame time step goes to 1/120 in orta_options_apply. ORTA_FPS=120 / 60 forces it for one run. */
+    {
+        const char *e = getenv("ORTA_FPS");
+        /* the saved value is ignored for now: 120 is not decoupled yet (recomp_manual.c RV_FRAMERATE), only ORTA_FPS */
+        int fps120 = e && *e && atoi(e) == 120;
+        if (fps120)
+            host_setenv_default("RECOMP_GUEST_HZ", "120");
+    }
+    /* SOUND > SPEAKERS (speakers=stereo|5.1; night order 2026-11-07, maintainer: only the game's own 5.1, a line in
+     * the game's SOUND options): 5.1 asks the toolkit for six channels (RECOMP_AUDIO_51); it is granted only on a
+     * device with 5.1 speakers, and then XC_AUDIO tells Orta it runs on a Dolby Digital Xbox - Orta mixes its
+     * sounds across the six speakers itself (FC dialogue, surrounds at front level; run 20261108_005443_spk_10000).
+     * Read at start: a change asks RESTART NEEDED. */
+    if (!strcmp(settings_get("speakers", "stereo"), "5.1"))
+        host_setenv_default("RECOMP_AUDIO_51", "1");
+    /* The renderer's per-frame ring at 16 MB instead of 48 (two in flight, both resident): Orta's peak is 8 MB per
+     * frame (RECOMP_VK_RING_STATS through boot, movies, menus and 6 min of episode 1: 0 mid-frame flushes) - 64 MB
+     * less working set (maintainer 2026-11-08: RAM in menus / movies; working set of the title 356 -> 291 MB). */
+    host_setenv_default("RECOMP_VK_RING_MB", "16");
 
     /* Before xbox_MemoryLayoutInit, which reads them (run 20261101_122728_m1_apu: set after it, the APU stayed
      * untrapped and DirectSoundCreate still said DSERR_NODRIVER). Audio LLE - see the APU block below. */
@@ -169,6 +194,18 @@ int main(int argc, char **argv)
         host_fatal("Cannot read game/default.xbe - put the game's disc image (.iso) or its extracted files into "
                    "the game folder.");
         return 1;
+    }
+    /* 128 MB of guest RAM (the debug kit's size; toolkit XBOX_DEVKIT_RAM) instead of 64: the guest heap ran out at
+     * the end of episode 3 - the closing cut scene asks for 10 MB, the heap's high mark stood at 45.7 of 48.5 MB
+     * ("xbox_HeapAlloc: out of memory (requested 10058688 ...)", then a NULL read at 0x000690F6 and a hang; known
+     * issue #10, play-through 2026-11-08). The heap top follows RAM: ~112 MB. RECOMP_RAM_MB=64 for the old size. */
+    {
+        const char *e = getenv("RECOMP_RAM_MB");
+        int mb = e && *e ? atoi(e) : 128;
+        if (mb == 64 || mb == 128) {
+            xbox_SetTotalRam((size_t)mb * 1024u * 1024u);
+            printf("guest RAM %d MB\n", mb);
+        }
     }
     if (!xbox_MemoryLayoutInit(xbe, xbe_size)) {    /* also sets g_xbox_title_id */
         host_fatal("Failed to map the Xbox memory layout.");
@@ -234,11 +271,12 @@ int main(int argc, char **argv)
      * saves\settings.ini (bind.keyboard, bind.pad.<GUID>), forced with ORTA_BIND_KEYBOARD / ORTA_BIND_PAD_<GUID> /
      * ORTA_BIND_PAD, ORTA_BIND_RESET=1 ignores the stored ones (emergency exit). Model: THPS 2X main.c. */
     xbox_InputBindSetStore(settings_get, settings_set, "ORTA_BIND");
-    /* xbox_OhciInit (the USB controller model) moved below the boot animation: its thread gives up when the title's
-     * driver has not started the controller within 1500 ticks of 4 ms = 6 s (toolkit ohci.c, OHCI_TICK_MS; its
-     * comment says 30 s), and media\boot.mpg plays 11.6 s before the title starts - so with a boot video no pad and
-     * no key ever reached the game (maintainer's session 2026-11-05 02:42; run 20261105_025018_bootusb1: no
-     * "[OHCI0] operational" line). */
+    /* The USB controller model. 2026-11-05 it sat below the boot animation for a while: the toolkit's OHCI thread
+     * gave up when the title's driver had not started the controller within 6 s, and media\boot.mpg plays 11.6 s
+     * (maintainer's session 2026-11-05 02:42; run 20261105_025018_bootusb1). The toolkit waits on now (toolkit
+     * 260af9e), so it is back in its place. */
+    if (*getenv("RECOMP_USB") != '0')
+        xbox_OhciInit();
 
     /* The PAL disc's console settings (toolkit xbox_settings.h). Without a game region XAPI's start-up check
      * quick-rebooted at once (run 20261101_114630_m1_sem: HalReturnToFirmware(2) from sub_0022DA5C, launch
@@ -259,8 +297,16 @@ int main(int argc, char **argv)
          * (maintainer 2026-11-01: "direkt in die recomp optionen setzen und spiel funktionen nutzen"; toolkit
          * 8d47326 AV caps + b5105ee 16:9 window). Read at start only: Orta creates its device once, so a change
          * in RECOMP OPTIONS needs RESTART NOW. RECOMP_XBOX_VIDEO still overrides it (toolkit). */
-        if (!strcmp(settings_get("aspect_ratio", "4:3"), "16:9"))
-            pal.video |= 0x00010000u;
+        /* 16:10 / 21:9 (night order 2026-11-07): Orta's own 16:9 path as well, widened further by the port
+         * (recomp_manual.c orta_aspect_*: the game's 4/3 widescreen factor becomes aspect / (4/3)); the toolkit's
+         * window / present take the value from RECOMP_WIDESCREEN (option-c xbox_video_aspect). */
+        {
+            const char *ar = settings_get("aspect_ratio", "4:3");
+            if (strcmp(ar, "4:3") != 0)
+                pal.video |= 0x00010000u;
+            if (!strcmp(ar, "16:10") || !strcmp(ar, "21:9"))
+                host_setenv_default("RECOMP_WIDESCREEN", ar);
+        }
         /* LANGUAGE (RECOMP OPTIONS, saves\settings.ini language=system|english|german|french|spanish|italian): the
          * console language XAPI reports; Orta picks its text files from it at start, so a change needs a restart.
          * system (default) = the toolkit's choice: the host UI language when the disc has it, else English. An
@@ -273,6 +319,16 @@ int main(int argc, char **argv)
             if (l) { pal.language = l; pal.languages = 0; }
         }
         xbox_settings_set_port(&pal);
+        /* The language the game really gets (maintainer 2026-11-07: log it, it can matter for bug reports): the
+         * [OPT] line only shows the setting (system = host UI language if the disc has it, else English), and
+         * RECOMP_XBOX_LANGUAGE overrides both - this is the resolved XC_LANGUAGE value. */
+        {
+            static const char *const k_lang[] = { "?", "english", "japanese", "german", "french", "spanish",
+                                                  "italian", "korean", "chinese", "portuguese" };
+            uint32_t r = xbox_settings()->language;
+            fprintf(stderr, "[ORTA] language: setting %s -> %s (XC_LANGUAGE %u)\n", settings_get("language", "system"),
+                    r < sizeof k_lang / sizeof *k_lang ? k_lang[r] : "?", r);
+        }
     }
     xbox_kernel_init();
     {
@@ -313,10 +369,6 @@ int main(int argc, char **argv)
     /* TODO (M2): wrap the title's D3D fence wait in recomp_manual.c and register
      * its GPU semaphore (porting_guide.md, M2). */
 #endif
-    /* the USB controller model, after the boot animation and before the title (see above) */
-    if (*getenv("RECOMP_USB") != '0')
-        xbox_OhciInit();
-
     g_esp = XBOX_STACK_TOP;
     xbox_diag_ctx_set(ctx);   /* the crash handler and watchdog read this set */
     if (!recomp_dispatch_init())

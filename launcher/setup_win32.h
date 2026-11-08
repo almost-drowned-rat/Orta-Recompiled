@@ -1,4 +1,4 @@
-/* setup_win32.h -- Orta's setup window in the NG2 launcher look (setup_win32.c). */
+/* setup_win32.h -- Orta's setup window in a Windows 95 look (setup_win32.c). */
 #ifndef ORTA_SETUP_WIN32_H
 #define ORTA_SETUP_WIN32_H
 

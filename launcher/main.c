@@ -2,7 +2,7 @@
  * toolkit's launcher (src/launcher) with Orta's names, versions and icon. The release script (tools/release.ps1)
  * appends the payload to the built exe. Model: THPS 2X launcher/main.c.
  *
- * Since 2026-11-05 (maintainer: the NG2 launcher's design, two lines for Orta): a fresh download started without
+ * Since 2026-11-05 (maintainer: another port's launcher design, two lines for Orta): a fresh download started without
  * arguments opens the setup window (setup_win32.c: disc image, install folder, Go -> Play); it copies this exe into
  * the install folder and runs the copy there with --image / --no-start / --setup-parent. Every other start - an
  * installed folder (data\build\stamp.txt), a game\ folder the player filled by hand, --repair, the setup's copy -

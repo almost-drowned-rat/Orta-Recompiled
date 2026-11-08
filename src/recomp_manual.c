@@ -60,6 +60,7 @@ extern volatile uint64_t g_icall_count;
 #include <stddef.h>
 extern ptrdiff_t g_xbox_mem_offset;
 #define GUEST32(va) (*(volatile uint32_t *)((uintptr_t)g_xbox_mem_offset + (uint32_t)(va)))
+#define GUEST8(va) (*(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + (uint32_t)(va)))
 
 /* ── Manual function overrides ─────────────────────────────── */
 
@@ -951,24 +952,25 @@ static int opt_clone_label(uint32_t tmpl_id, uint32_t new_id, const char *text, 
  * view text. All state is rebuilt on every open (orta_opt_after_load), the records are reloaded then. */
 /* Views from OPT_V_RECOMP on are the port's own: their lines come from k_pl (value lines, sub-lists, picks). */
 enum { OPT_V_TOP, OPT_V_CONTROLS, OPT_V_SOUND, OPT_V_RECOMP, OPT_V_AA, OPT_V_FPS, OPT_V_BOOT, OPT_V_BIND,
-       OPT_V_RESTART, OPT_V_PIC, OPT_V_N };
+       OPT_V_RESTART, OPT_V_PIC, OPT_V_VIEW, OPT_V_N };
 static const signed char k_opt_rows[OPT_V_N][9] = {
     /* line:   0   1   2   3   4   5   6   7   8 */
     /* TOP: PRACTICE (line 0, its AIMING value parked; maintainer 2026-11-04 late: ÜBUNG moves here as the first line),
      * ANZEIGE, SOUND, CONTROLS, RECOMP (maintainer 2026-11-04 ~08:00) */
     {          0, -1,  3, -1, -1, -1,  1,  2,  4 },
     {          0,  1,  2, -1, -1, -1, -1, -1, -1 },   /* CONTROLS */
-    {         -1, -1, -1,  0,  1,  2, -1, -1, -1 },   /* SOUND */
+    {         -1, -1, -1,  0,  1,  2,  3, -1, -1 },   /* SOUND: BGM / SE / STIMMEN, SPEAKERS (line 6, port value) */
     {          0,  1,  2,  3,  4,  5,  6,  7,  8 },   /* RECOMP OPTIONS: every stock line, value sprites parked */
     {          0,  1,  2,  3,  4, -1, -1, -1, -1 },   /* RECOMP > ANTIALIASING: the five choices */
-    {          0,  1,  2, -1, -1, -1, -1, -1, -1 },   /* RECOMP > FRAME RATE: FRAME RATE, VSYNC, FPS COUNTER */
+    {          0,  1,  2,  3, -1, -1, -1, -1, -1 },   /* RECOMP > FRAME RATE: FRAME RATE, FRAME PACING, VSYNC, FPS COUNTER */
     {          0,  1, -1, -1, -1, -1, -1, -1, -1 },   /* RECOMP > BOOT ANIMATION: status, ON / OFF */
     {          0,  1,  2,  3,  4,  5,  6,  7,  8 },   /* CONTROLS > BUTTON MAPPING: DEVICE, RESET, 6 bindings, NEXT */
     {          0,  1,  2, -1, -1, -1, -1, -1, -1 },   /* RESTART NEEDED: the line, RESTART NOW, LATER */
     {          0,  1, -1, -1, -1, -1, -1, -1, -1 },   /* RECOMP > BRIGHTNESS AND CONTRAST: the game's two values */
+    {          0,  1, -1, -1, -1, -1, -1, -1, -1 },   /* RECOMP > ASPECT RATIO AND FOV: ASPECT RATIO, FIELD OF VIEW */
 };
 /* views whose lines show their stock value sprites (others park them, "NAME: VALUE" is in the text) */
-static const unsigned char k_opt_values[OPT_V_N] = { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 };
+static const unsigned char k_opt_values[OPT_V_N] = { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
 static const char *const k_opt_text[OPT_V_N][9] = {
     { "PRACTICE", 0, "CONTROLS", 0, 0, 0, 0, "SOUND", "RECOMP OPTIONS" },
     { "AIMING", 0, "BUTTON MAPPING", 0, 0, 0, 0, 0, 0 },
@@ -987,8 +989,8 @@ static void opt_node_stock(uint32_t node, uint32_t *count, uint32_t *glyphs)
 
 /* ── RECOMP OPTIONS values (model: THPS 2X src/recomp_manual.c s_val / thps_options_apply; CLAUDE.md "RECOMP
  * OPTIONS") ─────────────────────────────────────────────────────────────────────────────────────────────────────
- * The view's stock lines 0..8 carry: DISPLAY MODE, RENDER RESOLUTION, ASPECT RATIO, ANISOTROPIC FILTER,
- * ANTIALIASING >, FRAME RATE >, BOOT ANIMATION >, LANGUAGE, BRIGHTNESS (CONTRAST and scrolling past 9 lines: open).
+ * The view's stock lines 0..8 carry (order: maintainer 2026-11-05): BRIGHTNESS AND CONTRAST >, DISPLAY MODE, RENDER
+ * RESOLUTION, ASPECT RATIO, ANISOTROPIC FILTER, ANTIALIASING >, FRAME RATE >, LANGUAGE, BOOT ANIMATION >.
  * Left / right step a value line, save it at once (saves\settings.ini) and apply it where the toolkit can at run
  * time (display mode, render scale, anisotropic filter); ASPECT RATIO and LANGUAGE apply at the next start (main.c
  * reads them before the device / XAPI settings exist). The sub-lists (">") and BRIGHTNESS are not built yet. */
@@ -1005,23 +1007,45 @@ enum { ORTA_VK_DISPLAY_WINDOWED, ORTA_VK_DISPLAY_BORDERLESS, ORTA_VK_DISPLAY_FUL
 void nv2a_vk_set_fps_hud(int mode);
 int  nv2a_vk_antialiasing_fits(int mode);
 
-typedef struct { const char *label, *key, *def; const char *val[6], *txt[6]; int n; } opt_val_t;
+typedef struct { const char *label, *key, *def; const char *val[8], *txt[8]; int n; } opt_val_t;
 enum { RV_DISPLAY, RV_RENDER, RV_ASPECT, RV_ANISO, RV_LANGUAGE, RV_AA, RV_FRAMERATE, RV_VSYNC, RV_FPSHUD, RV_BOOT,
-       RV_N };
+       RV_PACING, RV_FOV, RV_SPEAKERS, RV_N };
 static const opt_val_t k_rv[RV_N] = {
     /* index = NV2A_VK_AA_*; applied at once if the device can (nv2a_vk_antialiasing_fits), else refused */
     [RV_AA]       = { "ANTIALIASING", "antialiasing", "fxaa", { "off", "fxaa", "smaa", "msaa2", "msaa4" },
                       { "OFF", "FXAA", "SMAA", "MSAA 2X", "MSAA 4X" }, 5 },
     /* 120 is M7 (after M6, maintainer 2026-11-04): ORIGINAL only until then */
-    [RV_FRAMERATE] = { "FRAME RATE", "frame_rate", "original", { "original" }, { "ORIGINAL 60" }, 1 },
+    /* 120 (night order 2026-11-07, item 7): guest vblank 120 Hz + the game's own frame time step 1/120 (orta_fps_*
+     * below); at start (main.c RECOMP_GUEST_HZ) - RESTART NEEDED */
+    /* 120 NOT offered yet (2026-11-08 night test, runs 20261108_011846_fps60 / _012117_fps120): with dt 1/120 the
+     * flight path and the other per-frame steps still advance once per game frame - at 120 the level ran at twice
+     * the speed (game frame 1200 = the same scene, after 10 s instead of 20 s). docs/fps120_study.md lists the
+     * per-frame steps to halve. ORTA_FPS=120 still forces it for tests. */
+    [RV_FRAMERATE] = { "FRAME RATE", "frame_rate", "original", { "original", "120" }, { "ORIGINAL 60", "120" }, 1 },
     [RV_VSYNC]    = { "VSYNC", "vsync", "on", { "on", "off" }, { "ON", "OFF" }, 2 },      /* main.c, at start */
+    /* FRAME PACING (port guideline, maintainer 2026-11-05; THPS 2X v1.1.0): DISPLAY = on a 120 / 180 / 240 Hz display
+     * the guest vblank follows the display's own vblank (toolkit host_vblank, option-c night 2026-11-07), 60 HZ
+     * TIMER = the old clock. main.c -> RECOMP_FRAME_PACING, at start. */
+    [RV_PACING]   = { "FRAME PACING", "frame_pacing", "display", { "display", "timer" }, { "DISPLAY", "TIMER" }, 2 },
+    /* "TIMER", not THPS's "60 HZ TIMER": "FRAME PACING: 60 HZ TIMER - RESTART" ran off the screen when selected
+     * (run 20261107_213826_pacing_menu shot 02); the help line names the 60 Hz timer */
     [RV_FPSHUD]   = { "FPS COUNTER", "fps_counter", "off", { "off", "fps", "fps_frametime", "frametime" },
                       { "OFF", "FPS", "FPS AND FRAME TIME", "FRAME TIME" }, 4 },        /* = NV2A_VK_HUD_* */
     [RV_BOOT]     = { "BOOT ANIMATION", "boot_animation", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
     [RV_DISPLAY]  = { "DISPLAY MODE", "display_mode", "borderless", { "fullscreen", "borderless", "windowed" },
                       { "FULLSCREEN", "BORDERLESS", "WINDOWED" }, 3 },
     [RV_RENDER]   = { "RENDER RESOLUTION", NULL, NULL, { 0 }, { 0 }, 0 },          /* opt_render_* */
-    [RV_ASPECT]   = { "ASPECT RATIO", "aspect_ratio", "4:3", { "4:3", "16:9" }, { "4:3", "16:9" }, 2 },
+    /* 16:10 / 21:9 (night order 2026-11-07; THPS 2X v1.2.0): Orta's own 16:9 path, widened further by the port
+     * (orta_aspect_* below); 21:9 = 64:27 (2560x1080), as the toolkit's xbox_video_aspect */
+    [RV_ASPECT]   = { "ASPECT RATIO", "aspect_ratio", "4:3", { "4:3", "16:9", "16:10", "21:9" },
+                      { "4:3", "16:9", "16:10", "21:9" }, 4 },
+    /* FIELD OF VIEW (night order 2026-11-07; THPS 2X v1.2.0: ORIGINAL, +5 .. +30 degrees): added to the camera angle
+     * the game hands its renderer (sub_000419A0), at once. The menu font has no '+': the value is the degrees. */
+    [RV_FOV]      = { "FIELD OF VIEW", "field_of_view", "0", { "0", "5", "10", "15", "20", "25", "30" },
+                      { "ORIGINAL", "5", "10", "15", "20", "25", "30" }, 7 },
+    /* SPEAKERS (night order 2026-11-07, item 6; in SOUND, not RECOMP OPTIONS - maintainer): 5.1 = the game's own six
+     * speaker feeds to a 5.1 device (main.c RECOMP_AUDIO_51 -> toolkit XC_AUDIO Dolby Digital), at start */
+    [RV_SPEAKERS] = { "SPEAKERS", "speakers", "stereo", { "stereo", "5.1" }, { "STEREO", "5.1" }, 2 },
     [RV_ANISO]    = { "ANISOTROPIC FILTER", "anisotropic_filter", "16", { "off", "2", "4", "8", "16" },
                       { "OFF", "2X", "4X", "8X", "16X" }, 5 },
     /* SYSTEM = the host's UI language if the disc has it (toolkit xbox_settings, else English) - as before this line */
@@ -1034,18 +1058,26 @@ static const opt_val_t k_rv[RV_N] = {
 enum { PL_NONE, PL_VAL, PL_SUB, PL_PICK, PL_TEXT, PL_GAMEF };   /* PL_GAMEF: a game float, a = 0 / 1 below */
 typedef struct { unsigned char kind, a, b; const char *text; } opt_pl_t;
 static const opt_pl_t k_pl[OPT_V_N][9] = {
-    [OPT_V_RECOMP] = { { PL_VAL, RV_DISPLAY }, { PL_VAL, RV_RENDER }, { PL_VAL, RV_ASPECT }, { PL_VAL, RV_ANISO },
+    /* order: maintainer 2026-11-05 - BRIGHTNESS AND CONTRAST first, BOOT ANIMATION last (k_recomp help in the same order) */
+    [OPT_V_RECOMP] = { { PL_SUB, OPT_V_PIC, 0, "BRIGHTNESS AND CONTRAST" },
+                       /* ASPECT RATIO AND FOV > (night 2026-11-07): the view has nine stock lines, all in use - FIELD
+                        * OF VIEW joins ASPECT RATIO in a sub-list (THPS 2X has it right under ASPECT RATIO) */
+                       { PL_VAL, RV_DISPLAY }, { PL_VAL, RV_RENDER }, { PL_SUB, OPT_V_VIEW, 0, "ASPECT RATIO AND FOV" },
+                       { PL_VAL, RV_ANISO },
                        { PL_SUB, OPT_V_AA, 0, "ANTIALIASING" }, { PL_SUB, OPT_V_FPS, 0, "FRAME RATE" },
-                       { PL_SUB, OPT_V_BOOT, 0, "BOOT ANIMATION" }, { PL_VAL, RV_LANGUAGE },
-                       { PL_SUB, OPT_V_PIC, 0, "BRIGHTNESS AND CONTRAST" } },
+                       { PL_VAL, RV_LANGUAGE }, { PL_SUB, OPT_V_BOOT, 0, "BOOT ANIMATION" } },
     [OPT_V_AA]     = { { PL_PICK, RV_AA, 0 }, { PL_PICK, RV_AA, 1 }, { PL_PICK, RV_AA, 2 }, { PL_PICK, RV_AA, 3 },
                        { PL_PICK, RV_AA, 4 } },
-    [OPT_V_FPS]    = { { PL_VAL, RV_FRAMERATE }, { PL_VAL, RV_VSYNC }, { PL_VAL, RV_FPSHUD } },
+    [OPT_V_FPS]    = { { PL_VAL, RV_FRAMERATE }, { PL_VAL, RV_PACING }, { PL_VAL, RV_VSYNC }, { PL_VAL, RV_FPSHUD } },
     [OPT_V_BOOT]   = { { PL_TEXT, 1 }, { PL_VAL, RV_BOOT } },   /* a = 1: the file's status line */
     /* leaving RECOMP OPTIONS with a restart-bound value changed (CLAUDE.md RESTART NEEDED; THPS 2X host_restart) */
     [OPT_V_RESTART] = { { PL_TEXT, 0, 0, "RESTART NEEDED" }, { PL_TEXT, 3, 0, "RESTART NOW" },
                         { PL_TEXT, 4, 0, "LATER" } },
     [OPT_V_PIC]    = { { PL_GAMEF, 0, 0, "BRIGHTNESS" }, { PL_GAMEF, 1, 0, "CONTRAST" } },
+    [OPT_V_VIEW]   = { { PL_VAL, RV_ASPECT }, { PL_VAL, RV_FOV } },
+    /* SOUND: the game's three volumes (stock lines 3-5) + SPEAKERS on stock line 6 (ANZEIGE SICHTBAR, its value
+     * sprites parked) - maintainer 2026-11-07 ~23:45: the 5.1 choice in the game's SOUND options */
+    [OPT_V_SOUND]  = { [6] = { PL_VAL, RV_SPEAKERS } },
 };
 
 /* The game's gamma ramp on screen: sub_002AA6A0 = the XDK's D3DDevice_SetGammaRamp(Flags, pRamp) (lifted), called
@@ -1139,7 +1171,15 @@ void orta_boot_video(void)
 }
 static const opt_pl_t *opt_pl(int view, int line)
 {
-    return view >= OPT_V_RECOMP && view < OPT_V_N && line >= 0 && line < 9 ? &k_pl[view][line] : NULL;
+    return (view >= OPT_V_RECOMP || view == OPT_V_SOUND) && view < OPT_V_N && line >= 0 && line < 9
+               ? &k_pl[view][line] : NULL;
+}
+
+/* a line the port owns: every line of its own views, and a port value line inside a stock view (SOUND > SPEAKERS) */
+static int opt_port_line(int view, int line)
+{
+    const opt_pl_t *pl = opt_pl(view, line);
+    return view >= OPT_V_RECOMP || (pl && pl->kind != PL_NONE);
 }
 
 /* restart-bound values (ASPECT RATIO, LANGUAGE, VSYNC): the index this process started with, -1 for the others -
@@ -1152,6 +1192,9 @@ static int s_rv_start[RV_N] = { [0 ... RV_N - 1] = -1 };
  * over every menu change - so FULLSCREEN / BORDERLESS did nothing in his session (2026-11-04 15:00). A step or Y on
  * the line ends the override. */
 static int s_dm_session = -1;
+
+/* FIELD OF VIEW in Orta's angle units (65536 = one turn), -1 = read the setting again (sub_000419A0 below) */
+static int s_fov_units = -1;
 
 static int rv_index(int id)
 {
@@ -1169,8 +1212,17 @@ static const int k_wide_lines[] = { 480, 720, 900, 1080, 1440, 1800, 2160, 2400 
 static int s_ws_start = -1;
 static int rv_ws(void)
 {
-    if (s_ws_start < 0) s_ws_start = !strcmp(settings_get("aspect_ratio", "4:3"), "16:9");
+    if (s_ws_start < 0) s_ws_start = strcmp(settings_get("aspect_ratio", "4:3"), "4:3") != 0;
     return s_ws_start;
+}
+/* The aspect the RENDER RESOLUTION line lists: the SAVED one (THPS 2X v1.2.0: after an ASPECT RATIO change the line
+ * lists the new aspect's sizes right away; they apply after the restart, with the aspect). The wide aspects (16:9,
+ * 16:10, 21:9) share one key and one list of line counts; the width follows the aspect. */
+static int rv_ws_menu(void) { return strcmp(settings_get("aspect_ratio", "4:3"), "4:3") != 0; }
+static double rv_aspect_menu(void)
+{
+    const char *a = settings_get("aspect_ratio", "4:3");
+    return !strcmp(a, "16:10") ? 1.6 : !strcmp(a, "21:9") ? 64.0 / 27.0 : !strcmp(a, "16:9") ? 16.0 / 9.0 : 4.0 / 3.0;
 }
 static int rv_render_last(int ws) { return ws ? 7 : 16; }
 static double rv_render_factor(int s, int ws) { return ws ? k_wide_lines[s] / 480.0 : 1.0 + 0.25 * s; }
@@ -1205,6 +1257,7 @@ static void rv_apply(int id)
     if (id == RV_ANISO) nv2a_vk_aniso = rv_aniso_level();
     if (id == RV_AA) nv2a_vk_set_antialiasing(rv_index(RV_AA));
     if (id == RV_FPSHUD) nv2a_vk_set_fps_hud(rv_index(RV_FPSHUD));
+    if (id == RV_FOV) s_fov_units = -1;          /* the camera call picks the new value up (at once) */
 }
 
 /* the text of a port view line into out (upper case, the menu font's letters; no '>' in the font) */
@@ -1229,9 +1282,10 @@ static void rv_text(int view, int line, char *out, size_t n)
     if (id == RV_RENDER) {
         /* the resolution only, no factor (maintainer 2026-11-04 15:00): 4:3 = 640 x 480 times the factor, 16:9 =
          * the standard sizes (lines x 16/9) */
-        int ws = rv_ws(), s = rv_render_step(ws, NULL);
+        int ws = rv_ws_menu(), s = rv_render_step(ws, NULL);
         double f = rv_render_factor(s, ws);
-        int h = (int)(480 * f + 0.5), w = ws ? (int)(h * 16.0 / 9.0 + 0.5) : (int)(640 * f + 0.5);
+        /* wide: lines x aspect, rounded up from x.25 on (854X480 as CLAUDE.md / THPS 2X; 1280, 1920, 2560X1080 ...) */
+        int h = (int)(480 * f + 0.5), w = ws ? (int)ceil(h * rv_aspect_menu() - 0.25) : (int)(640 * f + 0.5);
         snprintf(out, n, "%s: %dX%d", k_rv[id].label, w, h);
         return;
     }
@@ -1263,13 +1317,13 @@ static int rv_step(int view, int line, int dir)
     }
     if (id < 0) return 0;
     if (id == RV_RENDER) {
-        int ws = rv_ws(), s = rv_render_step(ws, NULL) + dir;
+        int ws = rv_ws_menu(), s = rv_render_step(ws, NULL) + dir;
         char v[16];
         if (s < 0 || s > rv_render_last(ws)) return 0;
         if (!nv2a_vk_render_scale_fits(rv_render_factor(s, ws), ws)) return 0;   /* refused: the device cannot hold it */
         snprintf(v, sizeof v, "%.3f", rv_render_factor(s, ws));
         settings_set(rv_render_key(ws), v);
-        nv2a_vk_set_render_scale(rv_render_factor(s, ws), ws);
+        if (ws == rv_ws()) nv2a_vk_set_render_scale(rv_render_factor(s, ws), ws);   /* else: after the restart */
         return 1;
     }
     i = rv_index(id) + dir;
@@ -1292,10 +1346,10 @@ static int rv_default(int view, int line)
     }
     if (id < 0) return 0;
     if (id == RV_RENDER) {
-        int ws = rv_ws();
+        int ws = rv_ws_menu();
         if (rv_render_step(ws, NULL) == 0) return 0;
         settings_set(rv_render_key(ws), "1.000");
-        nv2a_vk_set_render_scale(1.0, ws);
+        if (ws == rv_ws()) nv2a_vk_set_render_scale(1.0, ws);
         return 1;
     }
     if (id == RV_DISPLAY && s_dm_session >= 0) {                 /* Y while the session forces WINDOWED */
@@ -1332,16 +1386,360 @@ void orta_options_apply(void)
     s_rv_start[RV_ASPECT] = rv_index(RV_ASPECT);
     s_rv_start[RV_LANGUAGE] = rv_index(RV_LANGUAGE);
     s_rv_start[RV_VSYNC] = rv_index(RV_VSYNC);
+    s_rv_start[RV_PACING] = rv_index(RV_PACING);
+    s_rv_start[RV_FRAMERATE] = rv_index(RV_FRAMERATE);
+    s_rv_start[RV_SPEAKERS] = rv_index(RV_SPEAKERS);
+    {
+        extern void orta_diag_player_start_ext(void);
+        orta_diag_player_start_ext();
+    }
+    {
+        /* FRAME RATE 120 (item 7): Orta steps its world by the frame time in APPDATA 0x341E30 (1/60; read 186 times
+         * by fld / fmul / fdiv, never written by address) - with the guest vblank at 120 Hz (main.c) it becomes
+         * 1/120, so the time based parts keep their speed. ORTA_FPS=120 / 60 forces it for one run. */
+        const char *e = getenv("ORTA_FPS");
+        int fps120 = e && *e ? atoi(e) == 120 : rv_index(RV_FRAMERATE) == 1;
+        if (fps120) {
+            float dt = 1.0f / 120.0f;
+            uint32_t bits;
+            memcpy(&bits, &dt, 4);
+            fprintf(stderr, "[ORTA] frame rate 120: frame time step 0x341E30 %08X -> %08X\n",
+                    (unsigned)GUEST32(0x341E30u), (unsigned)bits);
+            GUEST32(0x341E30u) = bits;
+        }
+    }
     rv_apply(RV_DISPLAY);
     rv_apply(RV_ANISO);
     rv_apply(RV_AA);
     rv_apply(RV_FPSHUD);
     fprintf(stderr, "[OPT] options: display %s, render scale %s, aspect %s, anisotropic filter %dx, antialiasing %s, "
-            "fps counter %s, vsync %s, language %s\n",
+            "fps counter %s, vsync %s, language %s, frame pacing %s, field of view %s, frame rate %s, speakers %s\n",
             k_rv[RV_DISPLAY].val[rv_index(RV_DISPLAY)], saved ? settings_get(rv_render_key(ws), "") : "default",
-            ws ? "16:9" : "4:3", nv2a_vk_aniso, k_rv[RV_AA].val[rv_index(RV_AA)],
+            k_rv[RV_ASPECT].val[rv_index(RV_ASPECT)], nv2a_vk_aniso, k_rv[RV_AA].val[rv_index(RV_AA)],
             k_rv[RV_FPSHUD].val[rv_index(RV_FPSHUD)], k_rv[RV_VSYNC].val[rv_index(RV_VSYNC)],
-            k_rv[RV_LANGUAGE].val[rv_index(RV_LANGUAGE)]);
+            k_rv[RV_LANGUAGE].val[rv_index(RV_LANGUAGE)], k_rv[RV_PACING].val[rv_index(RV_PACING)],
+            k_rv[RV_FOV].val[rv_index(RV_FOV)], k_rv[RV_FRAMERATE].val[rv_index(RV_FRAMERATE)],
+            k_rv[RV_SPEAKERS].val[rv_index(RV_SPEAKERS)]);
+}
+
+/* ── Debug: the dragon object over time (2026-11-07; finding the special gauge for the debug cheats) ─────
+ * ORTA_DIAG_PLAYER=<file>: a host thread writes, once a second, a record "ORTP" + ms + the object pointer + 0x4000
+ * bytes of the dragon object [0x474230] (health +0x3DC, max +0x3E0: the HUD's sub_0002EA90; +0x06C frames in the
+ * current section, +0x468 invulnerability frames after a hit) to <file>. Off by default; its own thread, never the
+ * game's. tools/player_diff.py reads it. */
+#include <SDL3/SDL.h>
+static int SDLCALL orta_diag_player_thread(void *path)
+{
+    FILE *f = fopen((const char *)path, "wb");
+    static uint8_t buf[0x4000];
+    if (!f) return 0;
+    for (;;) {
+        uint32_t p = GUEST32(0x474230u), ms = (uint32_t)SDL_GetTicks(), i;
+        SDL_Delay(1000);
+        if (p < 0x10000u || p > 0x3FF0000u) continue;
+        for (i = 0; i < sizeof buf; i += 4) { uint32_t w = GUEST32(p + i); memcpy(buf + i, &w, 4); }
+        fwrite("ORTP", 1, 4, f); fwrite(&ms, 4, 1, f); fwrite(&p, 4, 1, f); fwrite(buf, 1, sizeof buf, f);
+        fflush(f);
+    }
+}
+/* ORTA_DIAG_POKE=<offset hex>:<float> (diagnosis): every 100 ms that float into the dragon object - which field is
+ * which gauge (a cheat candidate held full, then watched on screen). */
+static int SDLCALL orta_diag_poke_thread(void *spec)
+{
+    const char *s = (const char *)spec;
+    uint32_t off = (uint32_t)strtoul(s, (char **)&s, 16), bits;
+    float v = *s == ':' ? (float)atof(s + 1) : 0.0f;
+    memcpy(&bits, &v, 4);
+    for (;;) {
+        uint32_t p = GUEST32(0x474230u);
+        if (p >= 0x10000u && p < 0x3FF0000u) GUEST32(p + off) = bits;
+        SDL_Delay(100);
+    }
+}
+/* ── Debug cheats (2026-11-07: for debugging and automated test runs only - never a menu line, never in the
+ * README / release notes; default off) ──────────────────────────────────────────────────────────────────────────────
+ * The dragon object [0x474230] (found 2026-11-07 from a recorded session with timed boost / special presses): health float +0x3DC, max +0x3E0; special gauge float +0x4D0 (0 .. 7200 = full, fills
+ * with kills, drains in ~3 s when White fires it); form int +0x01C (Y cycles 0 -> 1 -> 2 -> 0; 2 = the small dragon);
+ * +0x06C frames in the current section (counts while flying). The object is made anew after a death - the pointer is
+ * read every time.
+ *   ORTA_CHEAT_HEALTH=1   health held at its max (every 100 ms; hits of 10-15 never reach 0 in between)
+ *   ORTA_CHEAT_SPECIAL=1  the special gauge held full
+ *   ORTA_CHEAT_FORM=<n>   while the section counter runs and the form is not n: Y tapped (the keyboard's I key, the
+ *                         default layout in input.c), 1.5 s between taps for the morph - the autoplay's "Y x2 at each
+ *                         level start" (tools/autoplay_script.py)
+ * One host thread, never the game's; writes only these fields. */
+extern void xbox_InputKeyEvent(int scancode, int down);
+static int SDLCALL orta_cheat_thread(void *unused)
+{
+    const char *eh = getenv("ORTA_CHEAT_HEALTH"), *es = getenv("ORTA_CHEAT_SPECIAL"), *ef = getenv("ORTA_CHEAT_FORM");
+    const char *eb = getenv("ORTA_CHEAT_BOOST"), *ew = getenv("ORTA_CHEAT_WIGGLE");
+    int health = eh && *eh == '1', special = es && *es == '1', form = ef && *ef ? atoi(ef) : -1;
+    int boost = eb && *eb == '1';
+    /* ORTA_CHEAT_WIGGLE=<ms> (2026-11-08): while the section counter runs (in flight - not in menus, cut scenes, the
+     * score screen or the save question), the stick up and down by turns, <ms> each, through the keyboard's W / S
+     * (input.c keymap) - episode 2's boss wants "up or down". In the port: a first version steered from window
+     * captures, and a window capture every 2 s stalled the renderer 0.3-1.2 s. */
+    int wiggle = ew && *ew ? atoi(ew) : 0, wkey = 0;
+    uint32_t last_w = 0;
+    /* ORTA_CHEAT_MODE=<file> (2026-11-08; a second test mode, switched while the game runs): the file's first word,
+     * read every 0.5 s - "boost" = X on turbo (keyboard J, input.c keymap: 120 ms down every 500 ms; one tap per cycle
+     * never boosted) + the small-dragon form (ORTA_CHEAT_FORM) also while the pad script is paused; anything else =
+     * normal. The test driver pauses the pad script (RECOMP_PAD_LIVE "pause") for it. */
+    const char *em = getenv("ORTA_CHEAT_MODE");
+    int mode_boost = 0, xdown = 0;
+    uint32_t last_mode = 0, last_x = 0;
+    uint32_t last_tap = 0, last_sec = 0, sec_same = 0, boost_ptr = 0;
+    float boost_max = 0.0f;
+    float full = 7200.0f;
+    uint32_t full_bits;
+    (void)unused;
+    memcpy(&full_bits, &full, 4);
+    fprintf(stderr, "[CHEAT] health %d, special %d, boost %d, form %d, wiggle %d ms\n", health, special, boost, form,
+            wiggle);
+    for (;;) {
+        uint32_t p = GUEST32(0x474230u), now = (uint32_t)SDL_GetTicks();
+        SDL_Delay(100);
+        if (em && *em && now - last_mode >= 500u) {
+            FILE *mf = fopen(em, "rb");
+            char w[16] = {0};
+            int nb = 0;
+            last_mode = now;
+            if (mf) {
+                if (fscanf(mf, "%15s", w) != 1) w[0] = 0;
+                fclose(mf);
+            }
+            nb = strcmp(w, "boost") == 0;
+            if (nb != mode_boost) {
+                mode_boost = nb;
+                fprintf(stderr, "[CHEAT] mode %s\n", nb ? "BOOST (X turbo + small dragon)" : "normal");
+            }
+        }
+        if (mode_boost && now - last_x >= (xdown ? 120u : 380u)) {
+            xdown = !xdown;
+            xbox_InputKeyEvent(13, xdown);                     /* HID J = X */
+            last_x = now;
+        } else if (!mode_boost && xdown) {
+            xbox_InputKeyEvent(13, 0);
+            xdown = 0;
+        }
+        if (p < 0x10000u || p > 0x3FF0000u) continue;
+        if (health && GUEST32(p + 0x3E0u) != 0u) GUEST32(p + 0x3DCu) = GUEST32(p + 0x3E0u);
+        if (special) GUEST32(p + 0x4D0u) = full_bits;
+        if (boost) {
+            /* +0x484: boost charges (small dragon 3.0 = three boosts, refills slowly); held at the highest value seen
+             * for this object (forms may have another count) */
+            uint32_t w = GUEST32(p + 0x484u), mb;
+            float b;
+            memcpy(&b, &w, 4);
+            if (p != boost_ptr) { boost_ptr = p; boost_max = 0.0f; }
+            if (b == b && b > boost_max && b < 16.0f) boost_max = b;
+            if (boost_max > 0.0f && b < boost_max) { memcpy(&mb, &boost_max, 4); GUEST32(p + 0x484u) = mb; }
+        }
+        if (form >= 0 || wiggle > 0) {
+            uint32_t sec = GUEST32(p + 0x06Cu);
+            sec_same = sec == last_sec ? sec_same + 1 : 0;      /* standing still: menu, pause, cut scene */
+            last_sec = sec;
+        }
+        if (wiggle > 0) {
+            /* the pad script's pause switch (BACK held 1.5 s / "pause" in the live file) stops the wiggle too: the
+             * maintainer plays alone */
+            int flying = sec_same == 0 && GUEST32(p + 0x06Cu) > 300u && !xbox_InputScriptPaused();
+            if (!flying && wkey) {                              /* let go outside flight */
+                xbox_InputKeyEvent(wkey, 0);
+                wkey = 0;
+            } else if (flying && now - last_w >= (uint32_t)wiggle) {
+                int next = wkey == 26 ? 22 : 26;                /* HID W (stick up) <-> S (stick down) */
+                if (wkey) xbox_InputKeyEvent(wkey, 0);
+                xbox_InputKeyEvent(next, 1);
+                wkey = next;
+                last_w = now;
+            }
+        }
+        if (form >= 0) {
+            /* 4 s between taps and 5 s into a section: the morph takes longer than 1.5 s (run 20261107 autoplay_long40:
+             * a tap while the first morph still ran went one form too far), and the first level's recorded Y x2 comes
+             * right at its start */
+            if (sec_same == 0 && last_sec > 300u && (int)GUEST32(p + 0x01Cu) != form && now - last_tap > 4000u
+                && (!xbox_InputScriptPaused() || mode_boost)) {
+                xbox_InputKeyEvent(12, 1);                    /* HID I = Y */
+                SDL_Delay(120);
+                xbox_InputKeyEvent(12, 0);
+                last_tap = now;
+                fprintf(stderr, "[CHEAT] form %d -> Y\n", (int)GUEST32(p + 0x01Cu));
+            }
+        }
+    }
+}
+static void orta_diag_player_start(void)
+{
+    const char *e = getenv("ORTA_DIAG_PLAYER"), *k = getenv("ORTA_DIAG_POKE");
+    const char *c1 = getenv("ORTA_CHEAT_HEALTH"), *c2 = getenv("ORTA_CHEAT_SPECIAL"), *c3 = getenv("ORTA_CHEAT_FORM");
+    const char *c4 = getenv("ORTA_CHEAT_BOOST"), *c5 = getenv("ORTA_CHEAT_WIGGLE");
+    if (e && *e) SDL_DetachThread(SDL_CreateThread(orta_diag_player_thread, "orta_diag_player", (void *)e));
+    if (k && *k) SDL_DetachThread(SDL_CreateThread(orta_diag_poke_thread, "orta_diag_poke", (void *)k));
+    if ((c1 && *c1) || (c2 && *c2) || (c3 && *c3) || (c4 && *c4) || (c5 && *c5))
+        SDL_DetachThread(SDL_CreateThread(orta_cheat_thread, "orta_cheat", NULL));
+}
+void orta_diag_player_start_ext(void) { orta_diag_player_start(); }
+
+/* ── ASPECT RATIO 16:10 / 21:9 and FIELD OF VIEW (night order 2026-11-07) ───────────────────────────────────────────
+ * Orta's own widescreen (the console's XC_VIDEO widescreen bit; flag copy 0x342754) widens the picture by one factor,
+ * the float 4/3 at 0x30993C, in four places that test the flag:
+ *   sub_0003D340  display set-up: the renderer's aspect 0x342724 = 1.0 (x 4/3 when wide) -> renderer vtable +0x208
+ *   sub_000419A0  camera: half angle MEM32(0x449794) (65536 = one turn) -> tan x 4/3 when wide -> atan -> the wider
+ *                 angle (stored 0x4497C0, renderer vtable +0x7C)
+ *   sub_0002FC50, sub_000B7670  further users of the same factor under the same flag
+ * (0x30993C is read by six functions, found in the generated C; sub_00015790 and sub_0015B200 use it without the
+ * flag and are left alone.) For 16:10 / 21:9 those four run with the factor aspect / (4/3) = 1.2 / 1.7778 in place
+ * of 4/3 - Hor+: the height stays, more is seen at the sides. 4:3 and 16:9 run unchanged.
+ * FIELD OF VIEW adds its degrees to the camera angle for the call of sub_000419A0 only (the game's own value is put
+ * back after it), so the game's zooms keep working on top. */
+static float s_aspect_factor = -1.0f;             /* 0 = stock (4:3 / 16:9), else the factor for 0x30993C */
+static float orta_aspect_factor(void)
+{
+    if (s_aspect_factor < 0.0f) {
+        const char *a = settings_get("aspect_ratio", "4:3");     /* the value this process started with (main.c) */
+        s_aspect_factor = !strcmp(a, "16:10") ? 1.2f : !strcmp(a, "21:9") ? (float)(64.0 / 27.0 * 0.75) : 0.0f;
+        fprintf(stderr, "[ORTA] aspect %s: widescreen factor %.4f\n", a, s_aspect_factor > 0.0f ? s_aspect_factor : 4.0 / 3.0);
+    }
+    return s_aspect_factor;
+}
+#define ORTA_WS_FACTOR_CALL(genfn)                                                                                  \
+    do {                                                                                                            \
+        float f_ = orta_aspect_factor();                                                                            \
+        if (f_ > 0.0f) {                                                                                            \
+            uint32_t keep_ = GUEST32(0x30993Cu), bits_;                                                            \
+            memcpy(&bits_, &f_, 4);                                                                                 \
+            GUEST32(0x30993Cu) = bits_;                                                                             \
+            genfn(ctx, base);                                                                                       \
+            GUEST32(0x30993Cu) = keep_;                                                                             \
+        } else                                                                                                      \
+            genfn(ctx, base);                                                                                       \
+    } while (0)
+
+extern void sub_0003D340_gen(RECOMP_PARAMS);
+extern void sub_000419A0_gen(RECOMP_PARAMS);
+extern void sub_0002FC50_gen(RECOMP_PARAMS);
+extern void sub_000B7670_gen(RECOMP_PARAMS);
+/* The HUD: at 16:9 the game squeezes its 2D around the centre, x = (x - 320) * 0.75 + 320 (0.75 = the float at
+ * 0x309728 = (4/3) / (16/9)), in the functions that test the widescreen flag 0x342754 and read that float (found in
+ * the generated C: sub_00011C50, sub_000327E0, sub_00069A90; 0x309728 has other users without the flag, left
+ * alone). For 16:10 / 21:9 those run with (4/3) / aspect = the widescreen factor's inverse - the HUD at 21:9 was a
+ * third too wide (run 20261107_222652_shots_a219: SCORE gauge, radar oval). */
+#define ORTA_WS_SQUEEZE_CALL(genfn)                                                                                 \
+    do {                                                                                                            \
+        float f_ = orta_aspect_factor();                                                                            \
+        if (f_ > 0.0f) {                                                                                            \
+            float q_ = 1.0f / f_;                                                                                   \
+            uint32_t keep_ = GUEST32(0x309728u), bits_;                                                            \
+            memcpy(&bits_, &q_, 4);                                                                                 \
+            GUEST32(0x309728u) = bits_;                                                                             \
+            genfn(ctx, base);                                                                                       \
+            GUEST32(0x309728u) = keep_;                                                                             \
+        } else                                                                                                      \
+            genfn(ctx, base);                                                                                       \
+    } while (0)
+extern void sub_00011C50_gen(RECOMP_PARAMS);
+extern void sub_000327E0_gen(RECOMP_PARAMS);
+extern void sub_00069A90_gen(RECOMP_PARAMS);
+void sub_00011C50(RECOMP_PARAMS) { ORTA_WS_SQUEEZE_CALL(sub_00011C50_gen); }
+void sub_000327E0(RECOMP_PARAMS) { ORTA_WS_SQUEEZE_CALL(sub_000327E0_gen); }
+/* HUD to the edges (port rule: HUD anchored to the screen edges of the wider view; night order 2026-11-07).
+ * sub_00069A90 is the 2D sprite emitter: it writes one quad (4 vertices, stride 0x20, x at +0) at the vertex pointer
+ * 0x46F890, advances it by 0x80 and - widescreen flag 0x342754 set and sprite flag byte [arg+2] bit 3 clear - squeezes
+ * the four x around 320 (above). The squeeze alone keeps the 16:9 layout's distance from the centre, so at 21:9 the
+ * gauge / radar sat 80 px (of 640) inside the edge. Moving each quad on its own tore text apart (maintainer
+ * 2026-11-08: the episode title / subtitles at a level's start, "DIE S   TADT IM ST   URM", run
+ * 20261108_005700_intro_a219: one glyph = one quad). So the move works on GROUPS: sub_0006A740 (the sprite layer)
+ * emits the quads of one texture into the buffer 0x46F894..[0x46F890] and draws them with sub_0006A520, which then
+ * resets the pointer. sub_00069A90 notes each squeezed quad; before the draw, sub_0006A520's override sorts them by
+ * x and joins quads closer than 32 px (16:9 layout) into groups - a text line, the gauge with its bars, the radar with
+ * its dots. A group is moved by d = 320 * (1 - k), k = (16/9) / aspect, outwards when its centre (16:9 layout) lies
+ * in the left / right third and its width is at most 60 % (THPS 2X's anchor rule): the same distance to the edge as
+ * at 16:9, the same width; 16:10 (k > 1) moves it inwards; centre groups stay. Not while 0x345DD0 == 1 (a second
+ * squeeze, 0x30DBA8, a mode not seen in play yet). sub_00011C50 / sub_000327E0 draw on the stack, stay centre-squeezed. */
+#define ORTA_HUD_MAXQ 1024
+static uint32_t s_hud_q[ORTA_HUD_MAXQ];            /* guest address of each squeezed quad of the pending batch */
+static int s_hud_n;
+
+static float orta_qx(uint32_t va) { uint32_t b = GUEST32(va); float v; memcpy(&v, &b, 4); return v; }
+
+void sub_00069A90(RECOMP_PARAMS)
+{
+    float f = orta_aspect_factor();
+    uint32_t arg = GUEST32(g_esp + 4), vp0 = GUEST32(0x46F890u);
+    ORTA_WS_SQUEEZE_CALL(sub_00069A90_gen);
+    if (!(f > 0.0f) || !GUEST32(0x342754u) || (GUEST8(arg + 2u) & 8u) || GUEST32(0x345DD0u) == 1u)
+        return;
+    if (GUEST32(0x46F890u) == vp0 + 0x80u && s_hud_n < ORTA_HUD_MAXQ)
+        s_hud_q[s_hud_n++] = vp0;
+}
+
+extern void sub_0006A520_gen(RECOMP_PARAMS);
+void sub_0006A520(RECOMP_PARAMS)
+{
+    float f = orta_aspect_factor();
+    int n = s_hud_n, i, j;
+    uint32_t lo = GUEST32(0x46F894u), hi = GUEST32(0x46F890u);
+    s_hud_n = 0;
+    if (f > 0.0f && n > 0) {
+        static float bx0[ORTA_HUD_MAXQ], bx1[ORTA_HUD_MAXQ];
+        static uint32_t bq[ORTA_HUD_MAXQ];
+        float s16 = 0.75f * f;                       /* fb px -> 16:9 layout px (0.75 / q, q = 1 / f) */
+        float k = 4.0f / (3.0f * f), dmove = 320.0f * (1.0f - k);
+        int m = 0;
+        for (i = 0; i < n; i++) {                    /* this batch's quads only, sorted by x0 (insertion) */
+            uint32_t va = s_hud_q[i];
+            float a = 1e30f, b = -1e30f;
+            if (va < lo || va + 0x80u > hi)
+                continue;
+            for (j = 0; j < 4; j++) {
+                float x = orta_qx(va + (uint32_t)j * 0x20u);
+                if (x < a) a = x;
+                if (x > b) b = x;
+            }
+            for (j = m; j > 0 && bx0[j - 1] > a; j--) {
+                bx0[j] = bx0[j - 1]; bx1[j] = bx1[j - 1]; bq[j] = bq[j - 1];
+            }
+            bx0[j] = a; bx1[j] = b; bq[j] = va;
+            m++;
+        }
+        for (i = 0; i < m;) {                        /* groups: next quad starts within 32 px of the group's right end */
+            float g0 = bx0[i], g1 = bx1[i], d = 0.0f, c16;
+            for (j = i + 1; j < m && (bx0[j] - g1) * s16 <= 32.0f; j++)
+                if (bx1[j] > g1) g1 = bx1[j];
+            c16 = 320.0f + (0.5f * (g0 + g1) - 320.0f) * s16;
+            if ((g1 - g0) * s16 <= 384.0f) {
+                if (c16 < 640.0f / 3.0f) d = -dmove;
+                else if (c16 > 1280.0f / 3.0f) d = dmove;
+            }
+            if (d != 0.0f) {
+                int t, v;
+                for (t = i; t < j; t++)
+                    for (v = 0; v < 4; v++) {
+                        uint32_t va = bq[t] + (uint32_t)v * 0x20u, b;
+                        float x = orta_qx(va) + d;
+                        memcpy(&b, &x, 4);
+                        GUEST32(va) = b;
+                    }
+            }
+            i = j;
+        }
+    }
+    sub_0006A520_gen(ctx, base);
+}
+
+void sub_0003D340(RECOMP_PARAMS) { ORTA_WS_FACTOR_CALL(sub_0003D340_gen); }
+void sub_0002FC50(RECOMP_PARAMS) { ORTA_WS_FACTOR_CALL(sub_0002FC50_gen); }
+void sub_000B7670(RECOMP_PARAMS) { ORTA_WS_FACTOR_CALL(sub_000B7670_gen); }
+
+void sub_000419A0(RECOMP_PARAMS)
+{
+    uint32_t keep = GUEST32(0x449794u);
+    if (s_fov_units < 0) s_fov_units = (int)(atoi(k_rv[RV_FOV].val[rv_index(RV_FOV)]) * 65536.0 / 360.0 + 0.5);
+    if (s_fov_units) GUEST32(0x449794u) = keep + (uint32_t)s_fov_units;
+    ORTA_WS_FACTOR_CALL(sub_000419A0_gen);
+    if (s_fov_units) GUEST32(0x449794u) = keep;
 }
 
 /* ── CONTROLS > BUTTON MAPPING (porting guide M6; model THPS 2X bind_*, toolkit xinput_bind.h) ───────────────────
@@ -1565,7 +1963,7 @@ static const char *opt_view_text(int view, int line, char *buf, size_t n)
         snprintf(buf, n, "%s", line >= 0 && line < 9 && s_bind_text[line][0] ? s_bind_text[line] : " ");
         return buf;
     }
-    if (view >= OPT_V_RECOMP) { rv_text(view, line, buf, n); return buf; }
+    if (opt_port_line(view, line)) { rv_text(view, line, buf, n); return buf; }
     return k_opt_text[view][line];
 }
 
@@ -1665,8 +2063,18 @@ static void opt_line_text(int line, const char *t)
     /* SetText strings (normal = plain-row ids, selected); a line back to its stock text gets the stock text again
      * when a SetText of ours may still be on its instance (decoded; an undecodable label - umlaut - keeps ours) */
     {
-        char stock[48];
+        char stock[48], low[48];
         const char *s = t;
+        /* Lower case = the font's small capitals, the size of the game's own option labels (ANZEIGE SICHTBAR,
+         * VIBRATION); upper case is its big capitals - PRACTICE, SOUND, DISPLAY MODE ... looked bigger (maintainer
+         * 2026-11-05: "manche sind größer als andere" -> all small, as EXIT GAME in the main menu). Digits, ':' and
+         * the rest keep their codes. */
+        if (t) {
+            size_t i;
+            for (i = 0; t[i] && i + 1 < sizeof low; i++) low[i] = (t[i] >= 'A' && t[i] <= 'Z') ? (char)(t[i] + 32) : t[i];
+            low[i] = 0;
+            s = low;
+        }
         if (!t) {
             uint32_t c = 0, g = 0, d, k, node, n, guard = 0, owner = GUEST32(0x0047E084u);
             for (n = owner ? GUEST32(owner + 8) : 0; n && guard < 4096; n = GUEST32(n + 0x18), guard++)
@@ -1699,7 +2107,7 @@ static void opt_layout(int view)
         moved += opt_shift_line(line, s_opt_row[line], row, OPT_MV_LABEL);
         s_opt_row[line] = row;
         /* TOP's PRACTICE is stock line 0 (AIMING): its value stays parked */
-        if (k_opt_values[view] && !(view == OPT_V_TOP && line == 0)) {
+        if (k_opt_values[view] && !(view == OPT_V_TOP && line == 0) && !opt_port_line(view, line)) {
             moved += opt_shift_line(line, s_opt_vrow[line], row, OPT_MV_VALUE); s_opt_vrow[line] = row;
         }
         opt_line_text(line, t);
@@ -1708,7 +2116,8 @@ static void opt_layout(int view)
         static const char *const k_name[OPT_V_N] = { "TOP", "CONTROLS", "SOUND", "RECOMP", "RECOMP > ANTIALIASING",
                                                      "RECOMP > FRAME RATE", "RECOMP > BOOT ANIMATION",
                                                      "CONTROLS > BUTTON MAPPING", "RESTART NEEDED",
-                                                     "RECOMP > BRIGHTNESS AND CONTRAST" };
+                                                     "RECOMP > BRIGHTNESS AND CONTRAST",
+                                                     "RECOMP > ASPECT RATIO AND FOV" };
         fprintf(stderr, "[OPT] view %s: %d position words moved\n", k_name[view], moved);
     }
 }
@@ -1851,19 +2260,20 @@ static uint32_t opt_guest_call(X86Ctx *ctx, uint8_t *base, void (*fn)(RECOMP_PAR
 /* Plain ASCII, '\n' between the box's lines (the stock strings: run 20261104_094159_opt_views16). NULL = stock. */
 static const char *opt_help_for(int view, uint32_t line)
 {
-    static const char *const k_recomp[9] = {
+    static const char *const k_recomp[9] = {        /* = the k_pl[OPT_V_RECOMP] order */
+        "The game's brightness and contrast.\nPress A to open.",
         "Fullscreen, borderless or windowed.\nLeft or right to change, Y for the default.\nApplies at once.",
-        "The game's 480 lines times this factor.\nLeft or right to change, Y for the default.\nApplies at once.",
-        "4:3 as the original, or 16:9 widescreen.\nLeft or right to change, Y for the default.\nNeeds a restart.",
+        "The game's 480 lines times this factor.\nLeft or right to change, Y for the default.\nAt once; a new aspect ratio after restart.",
+        "Aspect ratio and field of view.\nPress A to open.",
         "Sharper textures seen at an angle.\nLeft or right to change, Y for the default.\nApplies at once.",
         "Edge smoothing.\nPress A to open.",
         "Frame rate, VSync and FPS counter.\nPress A to open.",
-        "Boot animation from media\\boot.mpg.\nPress A to open.",
         "Game language. SYSTEM follows Windows.\nLeft or right to change, Y for the default.\nNeeds a restart.",
-        "The game's brightness and contrast.\nPress A to open.",
+        "Boot animation from media\\boot.mpg.\nPress A to open.",
     };
-    static const char *const k_fps[3] = {
-        "The game's own 60 frames per second.\n120 comes in a later version.",
+    static const char *const k_fps[4] = {
+        "ORIGINAL 60 as the console.\n120 follows once the game logic runs apart from it.",
+        "DISPLAY: even frames on 120/180/240 Hz.\nTIMER: the old 60 Hz clock.\nLeft or right, Y for the default. Needs a restart.",
         "Waits for the display.\nLeft or right to change, Y for the default.\nNeeds a restart.",
         "Frames per second and frame time on screen.\nLeft or right to change, Y for the default.\nApplies at once.",
     };
@@ -1871,17 +2281,22 @@ static const char *opt_help_for(int view, uint32_t line)
     if (view == OPT_V_RECOMP) return k_recomp[line];
     if (view == OPT_V_AA)
         return "Smooths jagged edges.\nA to choose, Y for the default.\nApplies at once.";
-    if (view == OPT_V_FPS && line < 3) return k_fps[line];
+    if (view == OPT_V_FPS && line < 4) return k_fps[line];
     if (view == OPT_V_BOOT)
         return "Plays media\\boot.mpg at every start.\nLeft or right to change, Y for the default.\nSee the README.";
     if (view == OPT_V_TOP && line == 0) return "The practice missions: flying, aiming, dragon forms.\nPress A to start.";
     if (view == OPT_V_TOP && line == 2) return "Aiming, vibration and button mapping.\nPress A to open.";
-    if (view == OPT_V_TOP && line == 7) return "Music, effects and voice volume.\nPress A to open.";
+    if (view == OPT_V_TOP && line == 7) return "Music, effects, voice volume and speakers.\nPress A to open.";
+    if (view == OPT_V_SOUND && line == 6)
+        return "5.1: the game's own surround mix, on a 5.1 device.\nLeft or right to change, Y for the default.\nNeeds a restart.";
     if (view == OPT_V_TOP && line == 8) return "Display and graphics settings of the recomp.\nPress A to open.";
     if (view == OPT_V_CONTROLS && line == 0)   /* the game's help names the old label AUFW./ABW. */
         return "Up and down for aiming: normal or inverted.\nLeft or right to change, Y for the default.";
     if (view == OPT_V_CONTROLS && line == 2)
         return "Keys and buttons for the keyboard or the controller.\nPress A to open.";
+    if (view == OPT_V_VIEW)
+        return line == 0 ? "4:3 as the original, 16:9, 16:10 or 21:9.\nWider shows more at the sides.\nLeft or right, Y for the default. Needs a restart."
+                         : "Degrees wider than the original camera.\nLeft or right to change, Y for the default.\nApplies at once.";
     if (view == OPT_V_PIC)
         return line == 0 ? "Brightness of the picture.\nLeft or right to change, Y for the default.\nApplies at once."
                          : "Contrast of the picture.\nLeft or right to change, Y for the default.\nApplies at once.";
@@ -1956,7 +2371,8 @@ void sub_000AF580(RECOMP_PARAMS)
         return;
     }
     if ((bits & 0x8u) && s_opt_view == OPT_V_BIND && bind_reset()) opt_view_texts(OPT_V_BIND);   /* Y: reset */
-    if ((bits & 0x8u) && (s_opt_view == OPT_V_CONTROLS || s_opt_view == OPT_V_SOUND)) {
+    if ((bits & 0x8u) && (s_opt_view == OPT_V_CONTROLS || s_opt_view == OPT_V_SOUND) &&
+        !opt_port_line(s_opt_view, (int)cur)) {
         /* Y = the game's default of this line (maintainer: Y resets everywhere), through the game's own left /
          * right so its sprites, sound and saving follow: the start values in the XBE's data (0x34274C AUF/AB 0 =
          * NORMAL, 0x342750 VIBRATION 1 = EIN, 0x34276C.. the three volumes 1.0f = full). Volumes: right until the
@@ -1974,7 +2390,7 @@ void sub_000AF580(RECOMP_PARAMS)
         GUEST32(obj + 0x18) = bits;
         return;
     }
-    if ((bits & 0x8u) && s_opt_view >= OPT_V_RECOMP) {        /* Y (0x00000008, run _094159_opt_views16): default */
+    if ((bits & 0x8u) && opt_port_line(s_opt_view, (int)cur)) {   /* Y (0x00000008, run _094159_opt_views16): default */
         if (rv_default(s_opt_view, (int)cur)) {
             opt_view_texts(s_opt_view);
             fprintf(stderr, "[OPT] view %d line %u: default\n", s_opt_view, cur);
@@ -2014,7 +2430,7 @@ void sub_000AF580(RECOMP_PARAMS)
             bits &= ~0x101u;                                  /* the B code below runs the game's handler once */
             goto do_back;
         }
-        swallow = to >= 0 || (s_opt_view == OPT_V_CONTROLS && cur == 2) || s_opt_view >= OPT_V_RECOMP;
+        swallow = to >= 0 || (s_opt_view == OPT_V_CONTROLS && cur == 2) || opt_port_line(s_opt_view, (int)cur);
         if (swallow) {
             GUEST32(obj + 0x18) = bits & ~0x101u;              /* the game's A on these lines is not wanted */
             g_ecx = obj;
@@ -2029,7 +2445,7 @@ void sub_000AF580(RECOMP_PARAMS)
             return;
         }
     }
-    if ((bits & (0x08000000u | 0x04000000u)) && s_opt_view >= OPT_V_RECOMP) {   /* left / right: our values */
+    if ((bits & (0x08000000u | 0x04000000u)) && opt_port_line(s_opt_view, (int)cur)) {   /* left / right: our values */
         /* 0x04000000 = LEFT, 0x08000000 = RIGHT (run 20261104_090544_opt_views14: a scripted left arrived as
          * 0x44004000; down = 0x22002000, B = 0x00000002) */
         int dir = (bits & 0x08000000u) ? 1 : -1;
@@ -2039,8 +2455,12 @@ void sub_000AF580(RECOMP_PARAMS)
         if (s_opt_view == OPT_V_BIND) { if (bind_lr(cur, dir)) opt_view_texts(OPT_V_BIND); }
         else if (rv_step(s_opt_view, (int)cur, dir)) {
             char buf[48];
+            const opt_pl_t *spl = opt_pl(s_opt_view, (int)cur);
             rv_text(s_opt_view, (int)cur, buf, sizeof buf);
-            opt_line_text((int)cur, buf);                     /* SetText on its instances at the next call */
+            if (spl && spl->kind == PL_VAL && spl->a == RV_ASPECT)
+                opt_view_texts(s_opt_view);                   /* RENDER RESOLUTION lists the new aspect's sizes */
+            else
+                opt_line_text((int)cur, buf);                 /* SetText on its instances at the next call */
             fprintf(stderr, "[OPT] view %d line %u -> %s\n", s_opt_view, cur, buf);
         }
         GUEST32(obj + 0x18) = bits;
@@ -2052,7 +2472,9 @@ void sub_000AF580(RECOMP_PARAMS)
         back_line = s_opt_view == OPT_V_CONTROLS ? 2 : s_opt_view == OPT_V_SOUND ? 7 : s_opt_view == OPT_V_BIND ? 2 : 8;
         parent = OPT_V_TOP;
         if (s_opt_view == OPT_V_BIND) parent = OPT_V_CONTROLS;  /* back_line 2 = BUTTON MAPPING (set above) */
-        else if (s_opt_view == OPT_V_RECOMP && rv_restart_pending()) { parent = OPT_V_RESTART; back_line = 1; }
+        else if ((s_opt_view == OPT_V_RECOMP || s_opt_view == OPT_V_SOUND) && rv_restart_pending()) {
+            parent = OPT_V_RESTART; back_line = 1;            /* SOUND > SPEAKERS is restart-bound too */
+        }
         else if (s_opt_view == OPT_V_RESTART) parent = OPT_V_TOP;   /* LATER / B: TOP on RECOMP OPTIONS */
         else if (s_opt_view > OPT_V_RECOMP) {                  /* a RECOMP sub-list: back to its RECOMP line */
             int l;
@@ -2412,12 +2834,14 @@ void sub_000C0280(RECOMP_PARAMS)
 
 /* ── Rumble (maintainer 2026-11-05: "funktioniert eigentlich rumble?" - it did not) ───────────────────────────────
  * Orta's pad code: sub_0004FF80(slot, left, right) keeps the strongest request per pad slot in 0x449A90 + 8 * slot
- * (only while VIBRATION is EIN, 0x342750); sub_0004F600 (edx = slot, ebx = the pad's device object) sends it through
+ * (only while VIBRATION is EIN, 0x342750); the function at 0x0004F600 (edx = slot, ebx = the pad's device object) sends it through
  * the XPP driver when it changed against 0x449A70 - as a USB output report, which the toolkit's OHCI model accepts and
  * discards (ohci.c, OUT packets), so no motor ever turned. The override hands the same values to the toolkit's
  * xbox_InputSetState (SDL_RumbleGamepad) for the slot's pad (see below). ORTA_RUMBLE_TEST=1 (feel test): both motors
- * at half for 2 s whenever the main menu opens. */
-extern void sub_0004F600_gen(RECOMP_PARAMS);
+ * at half for 2 s whenever the main menu opens.
+ * 2026-11-05 (maintainer's OK for the toolkit fix): the toolkit's OHCI model now forwards the output report itself
+ * (toolkit usb_gamepad_output, RECOMP_USB_RUMBLE_TRACE=1 logs it), so the override only passes through - forwarding here
+ * as well would set the motors twice. Removed at the relift of 2026-11-07. */
 static void orta_rumble(uint32_t port, uint32_t left, uint32_t right)
 {
     XBOX_VIBRATION v;
@@ -2446,22 +2870,10 @@ void orta_rumble_test_tick(void)
     }
 }
 
-void sub_0004F600(RECOMP_PARAMS)
-{
-    uint32_t slot = g_edx, left = 0, right = 0, changed = 0, port = 0;
-    if (slot < 4) {
-        left = GUEST32(0x00449A90u + 8u * slot);
-        right = GUEST32(0x00449A94u + 8u * slot);
-        changed = left != GUEST32(0x00449A70u + 8u * slot) || right != GUEST32(0x00449A74u + 8u * slot);
-        /* The toolkit pad = the SLOT, not the XPP port number in 0x449D68: the toolkit plugs its pads in order (pad 0
-         * on HC0 port 1), which Orta's XPP calls port 2 - the maintainer's session 2026-11-05 02:45 sent every
-         * in-game rumble to port 2, "no controller on that port", while his pad was toolkit pad 0. The game fills its
-         * slots in port order, so slot k = the k-th plugged pad. */
-        port = slot;
-    }
-    sub_0004F600_gen(ctx, base);
-    if (changed && port < 4) orta_rumble(port, left, right);
-}
+/* The rumble function at 0x0004F600: its pass-through override is gone with the relift of 2026-11-07 (the toolkit
+ * forwards the report; the lifter takes any "sub_<address>" name in this file as an override, so it is not named).
+ * History: the forward used the SLOT as the toolkit pad, not the XPP port number in 0x449D68 - the toolkit plugs its
+ * pads in order (pad 0 on HC0 port 1), which Orta's XPP calls port 2 (maintainer's session 2026-11-05 02:45). */
 
 /* ── Pause menu in gameplay (maintainer 2026-11-04/05, docs/menu_rework.md) ───────────────────────────────────────
  *
