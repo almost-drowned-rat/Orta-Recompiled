@@ -350,14 +350,87 @@ void sub_00234930(RECOMP_PARAMS)
  * reachable: what the menu does after the call returns (it never returns on the console). */
 extern void sub_0022DA5C_gen(RECOMP_PARAMS);
 #include "platform/host.h"
+static int orta_launch_saturn_bonus(void);
+static void orta_saturn_text(void);
+
+/* sub_000121C0 = the Saturn bonus game's launcher (Pandora's Box; the only caller of XLaunchNewImage with
+ * "d:\pd1.xbe"): it tears the game down (sub_00033A70 / 00014FA0 / 00012060 / 0003F990 / 00013B70: sound, streams,
+ * system data save) and calls D3DDevice_PersistDisplay (sub_002ABB20) before the launch. Known issue #4 (2026-11-10,
+ * after the first play-through): selecting the entry HUNG in PersistDisplay - it waits for D3D's flip queue to
+ * drain, and the queue's flip targets had run ~2.4 M vblanks ahead of D3D's own vblank count over a long session
+ * (read from a dump of the hung process; root cause in the toolkit not traced yet, toolkit docs/lessons_learned.md). The launch is not planned anyway, so the whole function is replaced: the notice, then back to the
+ * menu - nothing is torn down, the menu keeps its sound and the game goes on. A later Saturn recomp would be
+ * started from orta_launch_saturn_bonus(). cdecl, no parameters, the return value is unused (it never returns on
+ * the console). */
+/* JAPANESE (GitHub #2, 2026-11-10). The
+ * PAL disc carries every Japanese text file (menudata\TextData\*_JP.msg, MessageEvent\MesData_*_JP.msg), but the
+ * PAL startup sub_00011820 maps XGetLanguage() with a switch on (lang - 3): German 2, French 3, Spanish 4, Italian
+ * 5, everything else (English 1 AND Japanese 2) -> 1, and hands that to sub_0002A970 = "set the game language"
+ * (stores it in 0x342760; read back by sub_0002A980 for the file names and the 6-case text switches). Index 0 is
+ * Japanese there. With LANGUAGE: JAPANESE (main.c -> XC_LANGUAGE 2) the setter gets 0 instead. */
+#include "xbox_settings.h"   /* toolkit: xbox_settings()->language */
+extern void sub_0002A970_gen(RECOMP_PARAMS);
+void sub_0002A970(RECOMP_PARAMS)
+{
+    static int logged;
+    orta_saturn_text();   /* once, at the startup's language set (the dialog tables are static data) */
+    if (xbox_settings()->language == XBOX_LANG_JAPANESE && GUEST32(g_esp + 4) == 1u) {
+        GUEST32(g_esp + 4) = 0u;
+        if (!logged++) { fprintf(stderr, "[ORTA] language: Japanese -> game language index 0\n"); fflush(stderr); }
+    }
+    sub_0002A970_gen(ctx, base);
+}
+
+extern void sub_000121C0_gen(RECOMP_PARAMS);
+void sub_000121C0(RECOMP_PARAMS)
+{
+    (void)base;
+    fprintf(stderr, "[LAUNCH] Saturn bonus game selected (sub_000121C0) - not planned, back to the menu\n");
+    fflush(stderr);
+    if (!orta_launch_saturn_bonus()) {
+        g_eax = 0;
+        g_esp += 4;                          /* ret */
+        return;
+    }
+    sub_000121C0_gen(ctx, base);
+}
 #define ORTA_ERROR_NOT_SUPPORTED 50u
 
-/* The Sega Saturn "Panzer Dragoon" in Pandora's Box. Returns 1 if it ran (never, for now). */
+/* The Sega Saturn "Panzer Dragoon" in Pandora's Box. Returns 1 if it ran (never, for now). The player is told in
+ * the game's own question box (orta_saturn_text below), so nothing is shown here (a Windows notice
+ * tried first went behind the game window). */
 static int orta_launch_saturn_bonus(void)
 {
-    host_notice("The Sega Saturn bonus game (Panzer Dragoon) is not planned for this recomp.\n\n"
-                "Das Sega-Saturn-Bonusspiel (Panzer Dragoon) ist in diesem Recomp nicht geplant.");
     return 0;
+}
+
+/* The game asks "Panzer Dragoon anfangen zu spielen?  Ja / Nein" with message 0x14 of its dialog tables (the six
+ * language tables of pm_dialog_text below; found 2026-11-10 by reading the tables: German entry 0x14 =
+ * "Panzer Dragoon anfangen zu spielen?\n\n%s0Ja%s0         %s1Nein%s1"). Message 0x14 is used by nothing else, so
+ * its text is replaced for good, in every language, by an English notice with one
+ * answer, OK. The box draws "%s0..%s0" / "%s1..%s1" as its answers. OK = answer 0 = the stock's "yes" -> the
+ * launcher sub_000121C0 (replaced above) returns to the menu at once. */
+static void orta_saturn_text(void)
+{
+    static int done;
+    /* no yes / no question: the notice at once, with OK */
+    static const char k_txt[] = "Panzer Dragoon, the Sega Saturn original,\nis not part of this recomp and cannot be\n"
+                                "started here. Sorry about that - and thank\nyou for playing Panzer Dragoon Orta!\n\n%s0OK%s0";
+    uint32_t ent[6], k, j, mine;
+    const uint32_t id = 0x14u;
+    if (done) return;
+    done = 1;
+    ent[0] = 0x003D5E98u + 12u * id; ent[1] = 0x003D5FB8u + 12u * id; ent[2] = 0x003D60D8u + 12u * id;
+    ent[3] = 0x003D61F8u + 12u * id; ent[4] = 0x003D5C58u + 12u * (4u + 2u * id); ent[5] = 0x003D5C64u + 24u * id;
+    mine = xbox_HeapAlloc(sizeof k_txt + 16u, 16);
+    if (!mine) { fprintf(stderr, "[LAUNCH] Saturn notice text: no memory - the stock question stays\n"); return; }
+    for (j = 0; j < sizeof k_txt; j++)
+        *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + mine + j) = (uint8_t)k_txt[j];
+    for (k = 0; k < 6; k++) {
+        uint32_t old = GUEST32(ent[k] + 8);
+        if (old >= 0x00300000u && old < 0x00400000u) GUEST32(ent[k] + 8) = mine;
+    }
+    fprintf(stderr, "[LAUNCH] Saturn question (message 0x14) -> \"not planned\" notice with OK\n");
 }
 
 static int orta_path_is(const char *p, const char *want)
@@ -995,6 +1068,7 @@ static void opt_node_stock(uint32_t node, uint32_t *count, uint32_t *glyphs)
  * time (display mode, render scale, anisotropic filter); ASPECT RATIO and LANGUAGE apply at the next start (main.c
  * reads them before the device / XAPI settings exist). The sub-lists (">") and BRIGHTNESS are not built yet. */
 #include "settings.h"
+#include "nv2a_backend.h"   /* toolkit: xbox_video_aspect (21:9 = the display's exact ratio) */
 #include <math.h>
 #include <stdarg.h>
 extern volatile int nv2a_vk_aniso;
@@ -1036,7 +1110,7 @@ static const opt_val_t k_rv[RV_N] = {
                       { "FULLSCREEN", "BORDERLESS", "WINDOWED" }, 3 },
     [RV_RENDER]   = { "RENDER RESOLUTION", NULL, NULL, { 0 }, { 0 }, 0 },          /* opt_render_* */
     /* 16:10 / 21:9 (night order 2026-11-07; THPS 2X v1.2.0): Orta's own 16:9 path, widened further by the port
-     * (orta_aspect_* below); 21:9 = 64:27 (2560x1080), as the toolkit's xbox_video_aspect */
+     * (orta_aspect_* below); 21:9 = the display's exact ratio in the 21:9 range, else 64:27 (orta_aspect_21x9) */
     [RV_ASPECT]   = { "ASPECT RATIO", "aspect_ratio", "4:3", { "4:3", "16:9", "16:10", "21:9" },
                       { "4:3", "16:9", "16:10", "21:9" }, 4 },
     /* FIELD OF VIEW (night order 2026-11-07; THPS 2X v1.2.0: ORIGINAL, +5 .. +30 degrees): added to the camera angle
@@ -1050,8 +1124,8 @@ static const opt_val_t k_rv[RV_N] = {
                       { "OFF", "2X", "4X", "8X", "16X" }, 5 },
     /* SYSTEM = the host's UI language if the disc has it (toolkit xbox_settings, else English) - as before this line */
     [RV_LANGUAGE] = { "LANGUAGE", "language", "system",
-                      { "system", "english", "german", "french", "spanish", "italian" },
-                      { "SYSTEM", "ENGLISH", "DEUTSCH", "FRANCAIS", "ESPANOL", "ITALIANO" }, 6 },
+                      { "system", "english", "german", "french", "spanish", "italian", "japanese" },
+                      { "SYSTEM", "ENGLISH", "DEUTSCH", "FRANCAIS", "ESPANOL", "ITALIANO", "JAPANESE" }, 7 },
 };
 /* The port views' lines: a value line (left / right / Y), a sub-list (A opens view a), a pick (A sets value b of
  * k_rv[a]), a plain text. */
@@ -1219,10 +1293,19 @@ static int rv_ws(void)
  * lists the new aspect's sizes right away; they apply after the restart, with the aspect). The wide aspects (16:9,
  * 16:10, 21:9) share one key and one list of line counts; the width follows the aspect. */
 static int rv_ws_menu(void) { return strcmp(settings_get("aspect_ratio", "4:3"), "4:3") != 0; }
+/* 21:9 = the display's EXACT ratio while it is in the 21:9 range (2026-11-08, all ports; toolkit option-c
+ * b95eec8: xbox_video_aspect() gives 43:18 on a 3440x1440 display, 64:27 on 2560x1080 or outside the
+ * range). xbox_video_aspect() is fixed once the window is open; when this process does not run at 21:9 (the menu lists
+ * a 21:9 chosen but not yet restarted) it is not a 21:9 value -> 64:27 until the restart. */
+static double orta_aspect_21x9(void)
+{
+    double r = xbox_video_aspect();
+    return (r >= 2.30 && r <= 2.42) ? r : 64.0 / 27.0;
+}
 static double rv_aspect_menu(void)
 {
     const char *a = settings_get("aspect_ratio", "4:3");
-    return !strcmp(a, "16:10") ? 1.6 : !strcmp(a, "21:9") ? 64.0 / 27.0 : !strcmp(a, "16:9") ? 16.0 / 9.0 : 4.0 / 3.0;
+    return !strcmp(a, "16:10") ? 1.6 : !strcmp(a, "21:9") ? orta_aspect_21x9() : !strcmp(a, "16:9") ? 16.0 / 9.0 : 4.0 / 3.0;
 }
 static int rv_render_last(int ws) { return ws ? 7 : 16; }
 static double rv_render_factor(int s, int ws) { return ws ? k_wide_lines[s] / 480.0 : 1.0 + 0.25 * s; }
@@ -1559,7 +1642,10 @@ static int SDLCALL orta_cheat_thread(void *unused)
             /* 4 s between taps and 5 s into a section: the morph takes longer than 1.5 s (run 20261107 autoplay_long40:
              * a tap while the first morph still ran went one form too far), and the first level's recorded Y x2 comes
              * right at its start */
-            if (sec_same == 0 && last_sec > 300u && (int)GUEST32(p + 0x01Cu) != form && now - last_tap > 4000u
+            /* only the three dragon forms 0..2 (Y cycles them): episode 5 is a special episode without them - the
+             * object there reads form 3 and the cheat tapped Y over and over (run 20261110_124558_issue1_auto_ep5) */
+            int cur_ = (int)GUEST32(p + 0x01Cu);
+            if (cur_ >= 0 && cur_ <= 2 && sec_same == 0 && last_sec > 300u && cur_ != form && now - last_tap > 4000u
                 && (!xbox_InputScriptPaused() || mode_boost)) {
                 xbox_InputKeyEvent(12, 1);                    /* HID I = Y */
                 SDL_Delay(120);
@@ -1595,12 +1681,21 @@ void orta_diag_player_start_ext(void) { orta_diag_player_start(); }
  * FIELD OF VIEW adds its degrees to the camera angle for the call of sub_000419A0 only (the game's own value is put
  * back after it), so the game's zooms keep working on top. */
 static float s_aspect_factor = -1.0f;             /* 0 = stock (4:3 / 16:9), else the factor for 0x30993C */
+static int s_aspect_is_21x9;
 static float orta_aspect_factor(void)
 {
     if (s_aspect_factor < 0.0f) {
         const char *a = settings_get("aspect_ratio", "4:3");     /* the value this process started with (main.c) */
-        s_aspect_factor = !strcmp(a, "16:10") ? 1.2f : !strcmp(a, "21:9") ? (float)(64.0 / 27.0 * 0.75) : 0.0f;
+        s_aspect_is_21x9 = !strcmp(a, "21:9");
+        s_aspect_factor = !strcmp(a, "16:10") ? 1.2f : s_aspect_is_21x9 ? (float)(orta_aspect_21x9() * 0.75) : 0.0f;
         fprintf(stderr, "[ORTA] aspect %s: widescreen factor %.4f\n", a, s_aspect_factor > 0.0f ? s_aspect_factor : 4.0 / 3.0);
+    } else if (s_aspect_is_21x9) {
+        /* the display fit happens when the window opens: read it at use time, never only the value from before it */
+        float f = (float)(orta_aspect_21x9() * 0.75);
+        if (f != s_aspect_factor) {
+            fprintf(stderr, "[ORTA] aspect 21:9: widescreen factor %.4f (display ratio %.4f)\n", f, f / 0.75);
+            s_aspect_factor = f;
+        }
     }
     return s_aspect_factor;
 }

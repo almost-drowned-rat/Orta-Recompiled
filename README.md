@@ -12,8 +12,8 @@ settings menu inside the game.
 
 > **AI disclosure:**  AI assistance yes (Claude Code by Anthropic).
 
-> **v0.9.0:** I expect bugs I have not found myself yet: please report every bug you find as an issue, I will try to fix each one
-> as fast as I can.
+> **v1.0.0:** playable from the first episode to the end credits - I played it through myself.
+> If you still find a bug, please report it as an issue, I will try to fix each one as fast as I can.
 
 ---
 
@@ -88,13 +88,13 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 | **Antialiasing** | Off, FXAA (default), SMAA, MSAA 2x, MSAA 4x |
 | **Frame rate** | V-Sync, **frame pacing** (DISPLAY = in step with your monitor, TIMER = a steady 60 Hz timer) and an FPS counter (FPS, frame time or both); the game runs at its original 60 fps |
 | **Boot animation** | Plays your own intro video before the game, for example the original Xbox boot animation ;) |
-| **Language** | System (follows Windows), English, German, French, Spanish, Italian |
+| **Language** | System (follows Windows), English, German, French, Spanish, Italian, Japanese (the European disc carries the complete Japanese text) |
 | **Brightness and contrast** | The game's own brightness and contrast, now visible on the PC screen |
 
 ### Widescreen (16:9, 16:10, 21:9)
 - Panzer Dragoon Orta has its own 16:9 mode; ASPECT RATIO 16:9 switches the game to it - menus included.
 - 16:10 and 21:9 build on it: more of the world at the sides, the HUD (health, gauges, radar) at the screen edges,
-  text lines kept whole.
+  text lines kept whole. 21:9 takes your monitor's exact ratio (e.g. 3440x1440 or 2560x1080).
 - The mouse cursor hides itself over the game window after 2 seconds without movement.
 - The game arranges some screens differently at 4:3 and 16:9 (e.g. the options background: a dense cloud layer at
   4:3, a large relief with thin clouds at 16:9) - both are the game's own layouts.
@@ -236,8 +236,7 @@ delete the `bind.` lines from `saves\settings.ini`.
 
 ## Known issues
 
-- The dragon's red special effect does not tint the whole picture: its edge shows a staircase of blocks - under
-  investigation.
+- A short smear (under a second) in episode 2 when the big worm first appears - planned for the next release.
 - 120 fps comes later (the game logic runs at its original 60).
 - The Sega Saturn *Panzer Dragoon* in Pandora's Box is not part of this port (selecting it shows a message).
 - The game has no custom soundtracks.
@@ -252,7 +251,9 @@ delete the `bind.` lines from `saves\settings.ini`.
 - **v0.6.1-beta:** setup window, rearranged main and pause menus with EXIT GAME, vibration, options kept on leaving.
 - **v0.9.0:** 16:10 / 21:9, field of view, frame pacing, 5.1 sound; water and Pandora's Box background fixed; the
   freeze at the end of episode 3 fixed; less memory.
-- **Next:** bug fixes from your reports, then v1.0; the USA version.
+- **v1.0.0:** playable to the end credits - fixes for episodes 3, 6 and 7, the red special effect and the Saturn
+  entry; Japanese; 21:9 at the monitor's exact ratio.
+- **Next release:** Linux and Android versions; the episode-2 smear and fixes from your reports.
 - **Later:** 120 fps (the game's logic decoupled from the frame rate).
 
 ### Non-goals

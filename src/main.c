@@ -315,7 +315,8 @@ int main(int argc, char **argv)
             const char *lang = settings_get("language", "system");
             uint32_t l = !strcmp(lang, "english") ? XBOX_LANG_ENGLISH : !strcmp(lang, "german") ? XBOX_LANG_GERMAN
                        : !strcmp(lang, "french") ? XBOX_LANG_FRENCH : !strcmp(lang, "spanish") ? XBOX_LANG_SPANISH
-                       : !strcmp(lang, "italian") ? XBOX_LANG_ITALIAN : 0;
+                       : !strcmp(lang, "italian") ? XBOX_LANG_ITALIAN
+                       : !strcmp(lang, "japanese") ? XBOX_LANG_JAPANESE : 0;   /* recomp_manual.c sub_0002A970 */
             if (l) { pal.language = l; pal.languages = 0; }
         }
         xbox_settings_set_port(&pal);
