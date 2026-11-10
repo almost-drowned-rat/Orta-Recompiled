@@ -32,17 +32,26 @@ and micro-benchmarks ([docs/option_c.md](https://github.com/almost-drowned-rat/x
 My earlier port, THPS 2X Recompiled, still runs on the older code model; Panzer Dragoon Orta is the first complete
 game on option-c.
 
-**Comparison** with SeveerJ's [Orta_PC_Recomp](https://github.com/SeveerJ/Orta_PC_Recomp) v0.7.1, an independently
-developed recompilation of the same game (same machine: laptop with an RTX 3050 Ti, attract demo, 16:9, 480 lines,
-frame cap 60, matching scenes, CPU in cores busy):
+**Comparison** with SeveerJ's [Orta_PC_Recomp](https://github.com/SeveerJ/Orta_PC_Recomp) v0.8 (Experimental), an
+independently developed recompilation of the same game - measured 2026-11-08 on the same machine (laptop with an
+RTX 3050 Ti), both at 16:9, 480 lines, antialiasing off, windowed, 60 fps, matching scenes; CPU in cores busy, RAM =
+working set. Menus, movie and attract demo without input; gameplay = episode 1, played by hand in both:
 
-| | Orta Recompiled | Orta_PC_Recomp v0.7.1 |
+| | Orta Recompiled | Orta_PC_Recomp v0.8 |
 |---|---|---|
-| CPU, menus | 0.22 - 0.26 | 0.10 - 0.33 |
-| CPU, movies | 0.21 - 0.28 | 0.62 - 1.27 |
-| CPU, gameplay | 0.39 - 0.45 | 0.71 - 0.90 |
-| GPU load | 5.8 % | 14.5 % |
-| RAM | 375 MB | 297 MB |
+| CPU, menus | 0.16 | 0.26 |
+| CPU, movies | 0.19 | 0.35 |
+| CPU, attract demo (real-time 3D) | 0.29 | 0.79 |
+| CPU, gameplay (played) | 0.30 | 0.84 |
+| GPU load, menus / movies | 5.1 % / 5.0 % | 6.4 % / 3.0 % |
+| GPU load, attract demo | 6.8 % | 35.9 % |
+| GPU load, gameplay (played) | 8.4 % | 45.2 % |
+| RAM, menus / movies | 285 / 293 MB | 247 / 243 MB |
+| RAM, attract demo | 320 MB | 360 MB |
+| RAM, gameplay (played) | 391 MB | 388 MB |
+
+(The GPU ran at a higher clock for the other port in these scenes, 1.8-1.9 GHz against 1.5 GHz, so at the same
+clock its share would be even higher.)
 
 These are numbers from one machine and one scene set, not a ranking - both ports are young and will change. The two
 projects also serve different players: Orta_PC_Recomp runs on DirectX 11, so it also supports older hardware, and it
