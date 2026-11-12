@@ -1,0 +1,30 @@
+# options_post.txt - Orta (PAL) RECOMP OPTIONS > POST PROCESSING (maintainer 2026-11-12): boot -> title -> START ->
+# main menu -> OPTIONEN, TOP down x4 (RECOMP OPTIONS) -> A: shot of RECOMP (7 lines, ANISOTROPIC FILTER and
+# ANTIALIASING gone) -> A on POST PROCESSING (line 0): shot of its 6 lines, then down x4 to BLOOM, right (ON), down to
+# BLOOM STRENGTH, right x2 (5 -> 7), shots after each; B back to RECOMP: the cursor on POST PROCESSING again.
+# The pad-script shots are surface dumps before the present: they show the menu texts, never the bloom itself.
+39000:start:200
+45000:down:200
+47000:down:200
+52000:a:200
+56000:down:200
+58000:down:200
+60000:down:200
+61500:down:200
+63000:a:200
+70000:shot=01_recomp
+72000:a:200
+78000:shot=02_post
+80000:down:200
+81000:down:200
+82000:down:200
+83000:down:200
+85000:shot=03_on_bloom
+86000:right:200
+88000:shot=04_bloom_on
+89000:down:200
+90000:right:200
+91000:right:200
+93000:shot=05_strength_7
+94000:b:200
+97000:shot=06_back_recomp

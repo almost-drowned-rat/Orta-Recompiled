@@ -139,7 +139,10 @@ int orta_vk_check(char *found, size_t n)
             if (destroy)
                 destroy(inst, NULL);
         } else {
-            add(found, n, "%sVulkan %u.%u driver (no instance)", "", VKC_MAJOR(loader), VKC_MINOR(loader), 0);
+            /* the loader is there but no driver made an instance; "Vulkan 1.4 driver (no instance)" read as "needs
+             * 1.3, found 1.4" (a Linux test without a GPU driver, 2026-11-12) */
+            add(found, n, "%sa Vulkan %u.%u loader, but no working Vulkan driver", "", VKC_MAJOR(loader),
+                VKC_MINOR(loader), 0);
         }
     }
     SDL_UnloadObject(so);

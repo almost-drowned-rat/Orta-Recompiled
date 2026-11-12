@@ -12,7 +12,8 @@ settings menu inside the game.
 
 > **AI disclosure:**  AI assistance yes (Claude Code by Anthropic).
 
-> **v1.1.0:** now also on **Linux** (one AppImage). Playable from the first episode to the end credits - I played it
+> **v1.1.1:** MSAA now smooths the whole 3D scene, and a new **bloom** option with an adjustable strength - all
+> picture settings are together in **POST PROCESSING**. Since v1.1.0 also on **Linux** (one AppImage). Playable from the first episode to the end credits - I played it
 > through myself. If you still find a bug, please report it as an issue, I will try to fix each one as fast as I can.
 > An **Android** experiment (v0.1.0) lives in its own repository: [Orta-Recompiled-Android](https://github.com/almost-drowned-rat/Orta-Recompiled-Android).
 
@@ -90,16 +91,14 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 
 | Setting | Values |
 |---|---|
+| **Post processing** | The picture settings, all applied at once: **brightness and contrast** (the game's own, now visible on the PC screen), **antialiasing** (off, FXAA (default), SMAA, MSAA 2x, MSAA 4x - MSAA smooths the whole 3D scene), **anisotropic filter** (off up to 16x) and **bloom** (off by default; a glow around bright light, not on the console) with a **bloom strength** from 1 to 10 |
 | **Display mode** | Borderless (default), Fullscreen (exclusive), Windowed – window size and position are remembered |
 | **Render resolution** | From the original 480 lines up to 5x (e.g. 1080p, 1440p, 4K) – independent of the window size |
 | **Aspect ratio** | 4:3, 16:9, 16:10 or 21:9 – 16:9 is the game's own widescreen mode; 16:10 and 21:9 widen the view further, the HUD moves to the screen edges; never stretched |
 | **Field of view** | Original, or wider by +5 up to +30 |
-| **Anisotropic filter** | Off up to 16x |
-| **Antialiasing** | Off, FXAA (default), SMAA, MSAA 2x, MSAA 4x |
 | **Frame rate** | V-Sync, **frame pacing** (DISPLAY = in step with your monitor, TIMER = a steady 60 Hz timer) and an FPS counter (FPS, frame time or both); the game runs at its original 60 fps |
 | **Boot animation** | Plays your own intro video before the game, for example the original Xbox boot animation ;) |
 | **Language** | System (follows Windows), English, German, French, Spanish, Italian, Japanese (the European disc carries the complete Japanese text) |
-| **Brightness and contrast** | The game's own brightness and contrast, now visible on the PC screen |
 
 ### Widescreen (16:9, 16:10, 21:9)
 - Panzer Dragoon Orta has its own 16:9 mode; ASPECT RATIO 16:9 switches the game to it - menus included.
@@ -280,6 +279,7 @@ delete the `bind.` lines from `saves\settings.ini`.
   entry; Japanese; 21:9 at the monitor's exact ratio.
 - **v1.1.0:** Linux (AppImage); a smaller Windows zip without any download; the options help texts complete again;
   every controller drives the game. Android in its own repository.
+- **v1.1.1:** POST PROCESSING in RECOMP OPTIONS; MSAA on the whole 3D scene; bloom with an adjustable strength.
 - **Next release:** the episode-2 smear and fixes from your reports.
 - **Later:** 120 fps (the game's logic decoupled from the frame rate).
 

@@ -1048,16 +1048,18 @@ static const signed char k_opt_rows[OPT_V_N][9] = {
 #ifdef __ANDROID__
     /* Android: no DISPLAY MODE (the app is always full screen, the line has no function there) - line 1 hidden,
      * the others move up a row */
-    {          0, -1,  1,  2,  3,  4,  5,  6,  7 },   /* RECOMP OPTIONS without DISPLAY MODE */
+    {          0, -1,  1,  2, -1, -1,  3,  4,  5 },   /* RECOMP OPTIONS without DISPLAY MODE */
 #else
-    {          0,  1,  2,  3,  4,  5,  6,  7,  8 },   /* RECOMP OPTIONS: every stock line, value sprites parked */
+    /* RECOMP OPTIONS, value sprites parked; lines 4 / 5 (were ANISOTROPIC FILTER, ANTIALIASING >) hidden since
+     * 2026-11-12: both are in POST PROCESSING now */
+    {          0,  1,  2,  3, -1, -1,  4,  5,  6 },
 #endif
-    {          0,  1,  2,  3,  4, -1, -1, -1, -1 },   /* RECOMP > ANTIALIASING: the five choices */
+    {         -1, -1, -1, -1, -1, -1, -1, -1, -1 },   /* (unused since 2026-11-12: ANTIALIASING is in POST PROCESSING) */
     {          0,  1,  2,  3, -1, -1, -1, -1, -1 },   /* RECOMP > FRAME RATE: FRAME RATE, FRAME PACING, VSYNC, FPS COUNTER */
     {          0,  1, -1, -1, -1, -1, -1, -1, -1 },   /* RECOMP > BOOT ANIMATION: status, ON / OFF */
     {          0,  1,  2,  3,  4,  5,  6,  7,  8 },   /* CONTROLS > BUTTON MAPPING: DEVICE, RESET, 6 bindings, NEXT */
     {          0,  1,  2, -1, -1, -1, -1, -1, -1 },   /* RESTART NEEDED: the line, RESTART NOW, LATER */
-    {          0,  1, -1, -1, -1, -1, -1, -1, -1 },   /* RECOMP > BRIGHTNESS AND CONTRAST: the game's two values */
+    {          0,  1,  2,  3,  4,  5, -1, -1, -1 },   /* RECOMP > POST PROCESSING: the game's two values, AA, AF, BLOOM x2 */
     {          0,  1, -1, -1, -1, -1, -1, -1, -1 },   /* RECOMP > ASPECT RATIO AND FOV: ASPECT RATIO, FIELD OF VIEW */
 };
 /* views whose lines show their stock value sprites (others park them, "NAME: VALUE" is in the text) */
@@ -1098,10 +1100,11 @@ enum { ORTA_VK_DISPLAY_WINDOWED, ORTA_VK_DISPLAY_BORDERLESS, ORTA_VK_DISPLAY_FUL
 
 void nv2a_vk_set_fps_hud(int mode);
 int  nv2a_vk_antialiasing_fits(int mode);
+void nv2a_vk_set_bloom(int strength);      /* toolkit: 0 = off, 1 .. NV2A_VK_BLOOM_MAX (10) */
 
-typedef struct { const char *label, *key, *def; const char *val[8], *txt[8]; int n; } opt_val_t;
+typedef struct { const char *label, *key, *def; const char *val[12], *txt[12]; int n; } opt_val_t;
 enum { RV_DISPLAY, RV_RENDER, RV_ASPECT, RV_ANISO, RV_LANGUAGE, RV_AA, RV_FRAMERATE, RV_VSYNC, RV_FPSHUD, RV_BOOT,
-       RV_PACING, RV_FOV, RV_SPEAKERS, RV_N };
+       RV_PACING, RV_FOV, RV_SPEAKERS, RV_BLOOM, RV_BLOOMSTR, RV_N };
 static const opt_val_t k_rv[RV_N] = {
     /* index = NV2A_VK_AA_*; applied at once if the device can (nv2a_vk_antialiasing_fits), else refused */
     [RV_AA]       = { "ANTIALIASING", "antialiasing", "fxaa", { "off", "fxaa", "smaa", "msaa2", "msaa4" },
@@ -1138,6 +1141,12 @@ static const opt_val_t k_rv[RV_N] = {
     /* SPEAKERS (night order 2026-11-07, item 6; in SOUND, not RECOMP OPTIONS - maintainer): 5.1 = the game's own six
      * speaker feeds to a 5.1 device (main.c RECOMP_AUDIO_51 -> toolkit XC_AUDIO Dolby Digital), at start */
     [RV_SPEAKERS] = { "SPEAKERS", "speakers", "stereo", { "stereo", "5.1" }, { "STEREO", "5.1" }, 2 },
+    /* BLOOM (maintainer 2026-11-12): a port-side glow on the bright parts (toolkit nv2a_vk_set_bloom), not on the
+     * console - OFF by default, at once; BLOOM STRENGTH = the toolkit's strength 1..10 (a scale, maintainer), 5 the
+     * middle. Both in POST PROCESSING. */
+    [RV_BLOOM]    = { "BLOOM", "bloom", "off", { "off", "on" }, { "OFF", "ON" }, 2 },
+    [RV_BLOOMSTR] = { "BLOOM STRENGTH", "bloom_strength", "5", { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" },
+                      { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" }, 10 },
     [RV_ANISO]    = { "ANISOTROPIC FILTER", "anisotropic_filter", "16", { "off", "2", "4", "8", "16" },
                       { "OFF", "2X", "4X", "8X", "16X" }, 5 },
     /* SYSTEM = the host's UI language if the disc has it (toolkit xbox_settings, else English) - as before this line */
@@ -1151,21 +1160,21 @@ enum { PL_NONE, PL_VAL, PL_SUB, PL_PICK, PL_TEXT, PL_GAMEF };   /* PL_GAMEF: a g
 typedef struct { unsigned char kind, a, b; const char *text; } opt_pl_t;
 static const opt_pl_t k_pl[OPT_V_N][9] = {
     /* order: maintainer 2026-11-05 - BRIGHTNESS AND CONTRAST first, BOOT ANIMATION last (k_recomp help in the same order) */
-    [OPT_V_RECOMP] = { { PL_SUB, OPT_V_PIC, 0, "BRIGHTNESS AND CONTRAST" },
+    /* POST PROCESSING > (maintainer 2026-11-12, the group's name too): BRIGHTNESS AND CONTRAST grew into the picture
+     * group - ANTIALIASING and ANISOTROPIC FILTER moved in, BLOOM joined; lines 4 / 5 are hidden (k_opt_rows) */
+    [OPT_V_RECOMP] = { { PL_SUB, OPT_V_PIC, 0, "POST PROCESSING" },
                        /* ASPECT RATIO AND FOV > (night 2026-11-07): the view has nine stock lines, all in use - FIELD
                         * OF VIEW joins ASPECT RATIO in a sub-list (THPS 2X has it right under ASPECT RATIO) */
                        { PL_VAL, RV_DISPLAY }, { PL_VAL, RV_RENDER }, { PL_SUB, OPT_V_VIEW, 0, "ASPECT RATIO AND FOV" },
-                       { PL_VAL, RV_ANISO },
-                       { PL_SUB, OPT_V_AA, 0, "ANTIALIASING" }, { PL_SUB, OPT_V_FPS, 0, "FRAME RATE" },
+                       { PL_NONE }, { PL_NONE }, { PL_SUB, OPT_V_FPS, 0, "FRAME RATE" },
                        { PL_VAL, RV_LANGUAGE }, { PL_SUB, OPT_V_BOOT, 0, "BOOT ANIMATION" } },
-    [OPT_V_AA]     = { { PL_PICK, RV_AA, 0 }, { PL_PICK, RV_AA, 1 }, { PL_PICK, RV_AA, 2 }, { PL_PICK, RV_AA, 3 },
-                       { PL_PICK, RV_AA, 4 } },
     [OPT_V_FPS]    = { { PL_VAL, RV_FRAMERATE }, { PL_VAL, RV_PACING }, { PL_VAL, RV_VSYNC }, { PL_VAL, RV_FPSHUD } },
     [OPT_V_BOOT]   = { { PL_TEXT, 1 }, { PL_VAL, RV_BOOT } },   /* a = 1: the file's status line */
     /* leaving RECOMP OPTIONS with a restart-bound value changed (CLAUDE.md RESTART NEEDED; THPS 2X host_restart) */
     [OPT_V_RESTART] = { { PL_TEXT, 0, 0, "RESTART NEEDED" }, { PL_TEXT, 3, 0, "RESTART NOW" },
                         { PL_TEXT, 4, 0, "LATER" } },
-    [OPT_V_PIC]    = { { PL_GAMEF, 0, 0, "BRIGHTNESS" }, { PL_GAMEF, 1, 0, "CONTRAST" } },
+    [OPT_V_PIC]    = { { PL_GAMEF, 0, 0, "BRIGHTNESS" }, { PL_GAMEF, 1, 0, "CONTRAST" }, { PL_VAL, RV_AA },
+                       { PL_VAL, RV_ANISO }, { PL_VAL, RV_BLOOM }, { PL_VAL, RV_BLOOMSTR } },
     [OPT_V_VIEW]   = { { PL_VAL, RV_ASPECT }, { PL_VAL, RV_FOV } },
     /* SOUND: the game's three volumes (stock lines 3-5) + SPEAKERS on stock line 6 (ANZEIGE SICHTBAR, its value
      * sprites parked) - maintainer 2026-11-07 ~23:45: the 5.1 choice in the game's SOUND options */
@@ -1358,6 +1367,8 @@ static void rv_apply(int id)
     if (id == RV_ANISO) nv2a_vk_aniso = rv_aniso_level();
     if (id == RV_AA) nv2a_vk_set_antialiasing(rv_index(RV_AA));
     if (id == RV_FPSHUD) nv2a_vk_set_fps_hud(rv_index(RV_FPSHUD));
+    if (id == RV_BLOOM || id == RV_BLOOMSTR)
+        nv2a_vk_set_bloom(rv_index(RV_BLOOM) ? rv_index(RV_BLOOMSTR) + 1 : 0);
     if (id == RV_FOV) s_fov_units = -1;          /* the camera call picks the new value up (at once) */
 }
 
@@ -1429,6 +1440,7 @@ static int rv_step(int view, int line, int dir)
     }
     i = rv_index(id) + dir;
     if (i < 0 || i >= k_rv[id].n) return 0;                     /* ends stop, as the stock value lines */
+    if (id == RV_AA && !nv2a_vk_antialiasing_fits(i)) return 0; /* refused: the device cannot hold it */
     if (id == RV_DISPLAY) s_dm_session = -1;                     /* the player's choice from now on */
     settings_set(k_rv[id].key, k_rv[id].val[i]);
     rv_apply(id);
@@ -1513,14 +1525,17 @@ void orta_options_apply(void)
     rv_apply(RV_ANISO);
     rv_apply(RV_AA);
     rv_apply(RV_FPSHUD);
+    rv_apply(RV_BLOOM);
     fprintf(stderr, "[OPT] options: display %s, render scale %s, aspect %s, anisotropic filter %dx, antialiasing %s, "
-            "fps counter %s, vsync %s, language %s, frame pacing %s, field of view %s, frame rate %s, speakers %s\n",
+            "fps counter %s, vsync %s, language %s, frame pacing %s, field of view %s, frame rate %s, speakers %s, "
+            "bloom %s, bloom strength %s\n",
             k_rv[RV_DISPLAY].val[rv_index(RV_DISPLAY)], saved ? settings_get(rv_render_key(ws), "") : "default",
             k_rv[RV_ASPECT].val[rv_index(RV_ASPECT)], nv2a_vk_aniso, k_rv[RV_AA].val[rv_index(RV_AA)],
             k_rv[RV_FPSHUD].val[rv_index(RV_FPSHUD)], k_rv[RV_VSYNC].val[rv_index(RV_VSYNC)],
             k_rv[RV_LANGUAGE].val[rv_index(RV_LANGUAGE)], k_rv[RV_PACING].val[rv_index(RV_PACING)],
             k_rv[RV_FOV].val[rv_index(RV_FOV)], k_rv[RV_FRAMERATE].val[rv_index(RV_FRAMERATE)],
-            k_rv[RV_SPEAKERS].val[rv_index(RV_SPEAKERS)]);
+            k_rv[RV_SPEAKERS].val[rv_index(RV_SPEAKERS)], k_rv[RV_BLOOM].val[rv_index(RV_BLOOM)],
+            k_rv[RV_BLOOMSTR].val[rv_index(RV_BLOOMSTR)]);
 }
 
 /* ── Debug: the dragon object over time (2026-11-07; finding the special gauge for the debug cheats) ─────
@@ -2374,12 +2389,11 @@ static uint32_t opt_guest_call(X86Ctx *ctx, uint8_t *base, void (*fn)(RECOMP_PAR
 static const char *opt_help_for(int view, uint32_t line)
 {
     static const char *const k_recomp[9] = {        /* = the k_pl[OPT_V_RECOMP] order */
-        "The game's brightness and contrast.\nPress A to open.",
+        "Brightness, contrast, edge smoothing,\ntexture filter and bloom.\nPress A to open.",
         "Fullscreen, borderless or windowed.\nLeft or right to change, Y for the default.\nApplies at once.",
         "The game's 480 lines times this factor.\nLeft or right to change, Y for the default.\nAt once; a new aspect ratio after restart.",
         "Aspect ratio and field of view.\nPress A to open.",
-        "Sharper textures seen at an angle.\nLeft or right to change, Y for the default.\nApplies at once.",
-        "Edge smoothing.\nPress A to open.",
+        NULL, NULL,                                 /* lines 4 / 5 hidden (in POST PROCESSING) */
         "Frame rate, VSync and FPS counter.\nPress A to open.",
         "Game language. SYSTEM follows Windows.\nLeft or right to change, Y for the default.\nNeeds a restart.",
         "Boot animation from media\\boot.mpg.\nPress A to open.",
@@ -2392,8 +2406,6 @@ static const char *opt_help_for(int view, uint32_t line)
     };
     if (line > 8) return NULL;
     if (view == OPT_V_RECOMP) return k_recomp[line];
-    if (view == OPT_V_AA)
-        return "Smooths jagged edges.\nA to choose, Y for the default.\nApplies at once.";
     if (view == OPT_V_FPS && line < 4) return k_fps[line];
     if (view == OPT_V_BOOT)
         return "Plays media\\boot.mpg at every start.\nLeft or right to change, Y for the default.\nSee the README.";
@@ -2412,7 +2424,12 @@ static const char *opt_help_for(int view, uint32_t line)
                          : "Degrees wider than the original camera.\nLeft or right to change, Y for the default.\nApplies at once.";
     if (view == OPT_V_PIC)
         return line == 0 ? "Brightness of the picture.\nLeft or right to change, Y for the default.\nApplies at once."
-                         : "Contrast of the picture.\nLeft or right to change, Y for the default.\nApplies at once.";
+             : line == 1 ? "Contrast of the picture.\nLeft or right to change, Y for the default.\nApplies at once."
+             : line == 2 ? "Smooths jagged edges. MSAA: the 3D scene too.\nLeft or right to change, Y for the default.\nApplies at once."
+             : line == 3 ? "Sharper textures seen at an angle.\nLeft or right to change, Y for the default.\nApplies at once."
+             : line == 4 ? "A glow around bright light, not on the console.\nLeft or right to change, Y for the default.\nApplies at once."
+             : line == 5 ? "How strong the glow is, 1 to 10.\nLeft or right to change, Y for the default.\nApplies at once."
+                         : NULL;
     if (view == OPT_V_RESTART)
         return line == 1 ? "Restarts the game with the new settings.\nUnsaved progress is lost."
              : line == 2 ? "The new settings apply at the next start." : "Some settings apply after a restart.";
