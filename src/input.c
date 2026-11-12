@@ -47,4 +47,10 @@ void game_input_init(void)
 {
     xbox_InputSetKeymap(s_keymap,
                         (int)(sizeof s_keymap / sizeof s_keymap[0]));
+#ifdef XBOX_INPUT_HAS_PAD_MODE
+    /* Orta is single-player: every pad is player 1 (2026-11-11: a handheld docked with an
+     * external pad - the built-in one took port 0 and the external one landed on port 1, which Orta never reads;
+     * the same for a Bluetooth pad joining the touch pad on a phone). RECOMP_PADS_MERGE=0 turns it off. */
+    xbox_InputSetPadMode(XBOX_PADS_MERGE);
+#endif
 }

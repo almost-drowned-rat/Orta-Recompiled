@@ -941,10 +941,22 @@ static int opt_set_add(int which, uint32_t key, int depth)
 /* x_lo..x_hi: the column filter of the move mode (labels / bar left of OPT_VALUE_X, values right of it). */
 static uint32_t s_walk_x_lo = 21, s_walk_x_hi = 639;
 
+/* A font's char table (sprite\Font\*_h_tbl.bin as loaded: header 0, 1, 0x1C, 0x1C, 0x200, then u16 glyph indices
+ * per byte). Two neighbouring indices read as one "x | y << 16" word inside a row band - known issue #18: the walk
+ * reached the help box's Arial table and moved the odd codes 0x55..0x75 by 150 (5 rows), so English help texts lost
+ * a c e g i k m o q s u U W Y (runs 20261111_075533_help_m6_en: 'a' 65 -> 215 on entering RECOMP OPTIONS; B's vertex
+ * dumps 20261111_074246_issue18_b_boxverts_h05: the glyph quads pointed at empty atlas cells). Never walked. */
+static int opt_is_font_table(uint32_t p)
+{
+    return GUEST32(p) == 0 && GUEST32(p + 4) == 1 && GUEST32(p + 8) == 0x1C && GUEST32(p + 12) == 0x1C &&
+           GUEST32(p + 16) == 0x200u;
+}
+
 static int opt_shift_walk(uint32_t p, int depth, uint32_t old_y, int dy)
 {
     int i, n = 0;
     if (depth > 3 || p < 0x00400000u || p >= 0x04000000u || !opt_set_add(0, p, depth)) return 0;
+    if (opt_is_font_table(p)) return 0;
     for (i = 0; i < 64; i++) {
         uint32_t a = p + 4 * (uint32_t)i, v = GUEST32(a), x = v & 0xFFFFu, y = v >> 16;
         /* below the row: +12 for the value column (volume dots' wave keys go to +8), only +5 left of it - the next
@@ -1033,7 +1045,13 @@ static const signed char k_opt_rows[OPT_V_N][9] = {
     {          0, -1,  3, -1, -1, -1,  1,  2,  4 },
     {          0,  1,  2, -1, -1, -1, -1, -1, -1 },   /* CONTROLS */
     {         -1, -1, -1,  0,  1,  2,  3, -1, -1 },   /* SOUND: BGM / SE / STIMMEN, SPEAKERS (line 6, port value) */
+#ifdef __ANDROID__
+    /* Android: no DISPLAY MODE (the app is always full screen, the line has no function there) - line 1 hidden,
+     * the others move up a row */
+    {          0, -1,  1,  2,  3,  4,  5,  6,  7 },   /* RECOMP OPTIONS without DISPLAY MODE */
+#else
     {          0,  1,  2,  3,  4,  5,  6,  7,  8 },   /* RECOMP OPTIONS: every stock line, value sprites parked */
+#endif
     {          0,  1,  2,  3,  4, -1, -1, -1, -1 },   /* RECOMP > ANTIALIASING: the five choices */
     {          0,  1,  2,  3, -1, -1, -1, -1, -1 },   /* RECOMP > FRAME RATE: FRAME RATE, FRAME PACING, VSYNC, FPS COUNTER */
     {          0,  1, -1, -1, -1, -1, -1, -1, -1 },   /* RECOMP > BOOT ANIMATION: status, ON / OFF */

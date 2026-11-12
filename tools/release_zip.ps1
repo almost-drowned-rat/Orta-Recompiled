@@ -3,10 +3,11 @@
 #   powershell -File tools\release_zip.ps1 -Version <v> -Notes <release_notes.md>
 #
 # Into a new folder private\deliver\v<v>\ (refused if it exists): zip\ (the exe, README.txt from
-# tools\release_readme.txt, LICENSES\ from the release's payload, tools\download\ with the pinned llvm-mingw zip),
+# tools\release_readme.txt, LICENSES\ from the release's payload, tools\bundle\ with the pinned llvm-mingw zip),
 # Orta-Recompiled-v<v>-win64.zip, SHA256SUMS.txt, release_notes.md. The compiler ships inside the zip, so the first
-# start needs no internet: the launcher finds the zip in tools\download\ with the pinned size and SHA-256 and only
-# unpacks it (it still downloads when the file is gone). The llvm-mingw zip is the unchanged upstream release
+# start needs no internet: the launcher finds the zip in tools\bundle\ with the pinned size and SHA-256 and only
+# unpacks it; nothing is ever downloaded (toolchain.txt format 2, option-c 3b73415: a missing or damaged zip ends
+# with "The package is incomplete - please download it again."). The llvm-mingw zip is the unchanged upstream release
 # (Apache-2.0 with LLVM exception, licence in LICENSES\), cached once in tools\private\deps\release_cache.
 param(
 [Parameter(Mandatory)] [string]$Version,
@@ -42,9 +43,17 @@ $stage = Get-ChildItem (Join-Path $Private "release") -Directory | Where-Object 
     Sort-Object Name | Select-Object -Last 1
 if (-not $stage) { throw "no release stage for $Version in private\release" }
 $P = Join-Path $stage.FullName "payload"
+# toolchain.txt format 2: "bundle <zip under tools\> <sha256> <size> <folder in the zip> <target under tools\>"
 $tc = @{}
-foreach ($l in Get-Content (Join-Path $P "toolchain.txt")) { $kv = $l -split "`t", 2; if ($kv.Count -eq 2) { $tc[$kv[0]] = $kv[1] } }
-$tcName = Split-Path -Leaf $tc["url"]
+foreach ($l in Get-Content (Join-Path $P "toolchain.txt")) {
+    $f = $l -split "`t"
+    if ($f[0] -eq "format") { $tc["format"] = $f[1] }
+    if ($f[0] -eq "bundle" -and $f.Count -ge 6) { $tc["zip"] = $f[1]; $tc["sha256"] = $f[2]; $tc["size"] = $f[3] }
+    if ($f[0] -eq "url") { throw "toolchain.txt has a url line - the launcher (format 2) refuses it; run tools\release.ps1 again" }
+}
+if ($tc["format"] -ne "2" -or -not $tc["zip"]) { throw "toolchain.txt is not format 2 with a bundle line" }
+$tcName = Split-Path -Leaf $tc["zip"]
+$tcSub = Split-Path -Parent ($tc["zip"] -replace '/', '\')      # "bundle"
 $tcZip = Join-Path $Cache $tcName
 
 $lock = Enter-GlobalLock -Class shared -Who "O (Panzer Dragoon Orta)" -What "release zip $Version"
@@ -55,10 +64,10 @@ try {
 
     $Z = Join-Path $D "zip"
     New-Item -ItemType Directory (Join-Path $Z "LICENSES") | Out-Null
-    New-Item -ItemType Directory (Join-Path $Z "tools\download") | Out-Null
+    New-Item -ItemType Directory (Join-Path $Z "tools\$tcSub") | Out-Null
     Copy-Item -LiteralPath $Exe -Destination $Z
     Copy-Item (Join-Path $P "licenses\*") (Join-Path $Z "LICENSES")
-    Copy-Item -LiteralPath $tcZip -Destination (Join-Path $Z "tools\download")
+    Copy-Item -LiteralPath $tcZip -Destination (Join-Path $Z "tools\$tcSub")
     $readme = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "release_readme.txt")).Replace("{VERSION}", $Version)
     [IO.File]::WriteAllText((Join-Path $Z "README.txt"), ($readme -replace "`r?`n", "`r`n"), $utf8)
     Copy-Item -LiteralPath $Notes -Destination (Join-Path $D "release_notes.md")
@@ -76,7 +85,7 @@ try {
         }
     } finally { $za.Dispose(); $zs.Close() }
 
-    $sums = foreach ($f in @($zipPath, (Join-Path $Z $ExeName), (Join-Path $Z "tools\download\$tcName"))) {
+    $sums = foreach ($f in @($zipPath, (Join-Path $Z $ExeName), (Join-Path $Z "tools\$tcSub\$tcName"))) {
         $i = Get-Item -LiteralPath $f
         "{0}  {1}  {2} bytes" -f (Get-FileHash -LiteralPath $f).Hash, $i.Name, $i.Length
     }

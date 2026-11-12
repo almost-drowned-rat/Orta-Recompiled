@@ -25,7 +25,7 @@ default.xbe SHA-256: `0776e8607d820c4e359a8059cad3aabe30629abdd13dbc33553151e435
 | id | version | image | state |
 |---|---|---|---|
 | `pal` | Europe (PAL), 6 text languages | `Panzer Dragoon Orta (Europe).iso` | the supported version |
-| `us` | USA (NTSC), **title ID 0x53450007**, XDK **4928**, built 2002-11-18, default.xbe SHA-1 B9E64BC1554EFCA9FCBBDA4AA4A0C11CF5684241 | `Panzer Dragoon Orta (USA).iso` (full redump) | not supported yet (variant removed 2026-11-04); US port starts by Tue 2026-11-10 11:30, M0 data below |
+| `us` | USA (NTSC), **title ID 0x53450007**, XDK **4928**, built 2002-11-18, default.xbe SHA-1 B9E64BC1554EFCA9FCBBDA4AA4A0C11CF5684241 | `Panzer Dragoon Orta (USA).iso` (full redump) | not supported - US support struck completely by the maintainer 2026-11-11; M0 data below is history only |
 | `jp` | Japan (NTSC-J), first release Dec 2002 | missing | – |
 
 ## XDK libraries
@@ -61,7 +61,7 @@ bonus game, see below), `IdexChannelObject`, `MmClaimGpuInstanceMemory`, `KeConn
 - **Pandora's Box bonus content:** `PD1.xbe` (8.5 MB, a second XBE = the Sega Saturn *Panzer Dragoon* emulation,
   path string `d:\pd1.xbe` in default.xbe), `p1media/` (its movies + `bgm*.wma`), `pd1_dra.*`.
 
-## US version (USA, NTSC) - M0 data, 2026-11-08
+## US version (USA, NTSC) - M0 data, 2026-11-08 (history: US support struck 2026-11-11)
 
 Source: toolkit option-c `tools.xiso` / `tools.xbe_parser` on `Panzer Dragoon Orta (USA).iso` (read only); output in
 `private\m0_us\` (`files.txt`, `default.xbe`, `xbe.json`, `xbe_info.txt`), never committed. Not lifted yet.

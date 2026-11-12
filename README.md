@@ -12,8 +12,9 @@ settings menu inside the game.
 
 > **AI disclosure:**  AI assistance yes (Claude Code by Anthropic).
 
-> **v1.0.0:** playable from the first episode to the end credits - I played it through myself.
-> If you still find a bug, please report it as an issue, I will try to fix each one as fast as I can.
+> **v1.1.0:** now also on **Linux** (one AppImage). Playable from the first episode to the end credits - I played it
+> through myself. If you still find a bug, please report it as an issue, I will try to fix each one as fast as I can.
+> An **Android** experiment (v0.1.0) lives in its own repository: [Orta-Recompiled-Android](https://github.com/almost-drowned-rat/Orta-Recompiled-Android).
 
 ---
 
@@ -129,13 +130,14 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 ## Getting started
 
 ### Requirements
-- Windows 10/11, 64-bit (Linux via Proton / Wine is not tested yet)
+- Windows 10/11, 64-bit, **or** Linux x86-64 with glibc 2.35 or newer (e.g. Ubuntu 22.04+, Fedora 36+, Arch /
+  CachyOS), X11 or Wayland
 - A GPU whose driver offers **Vulkan 1.3** with the extension `VK_KHR_push_descriptor` (NVIDIA GTX 900 and newer,
   AMD RX 400 and newer, Intel HD 500 / UHD 600 and newer, Intel Arc). If something is missing, the game says so at
   the start and names your GPU, its Vulkan version and what it lacks.
 - Your own copy of *Panzer Dragoon Orta* (Europe / PAL)
 - About **7 GB** of free disk space during the first start (the image and its extracted files), about **4 GB**
-  afterwards. **No internet needed:** the compiler ships inside the release zip.
+  afterwards. **No internet needed:** the compiler ships inside the release zip / AppImage.
 
 ### Supported version
 
@@ -146,16 +148,16 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 Other versions (USA, Japan) are refused with: *"This Panzer Dragoon Orta version is not supported. Supported
 version(s): Europe. Please provide a supported version."*
 
-### First start
-1. Download `Orta-Recompiled-v<version>-win64.zip` (about 210 MB, the compiler included) from the release page and
+### First start (Windows)
+1. Download `Orta-Recompiled-v<version>-win64.zip` (about 95 MB, the compiler included) from the release page and
    unpack it (keep the `tools\` folder next to the exe).
 2. Start `Panzer Dragoon Orta Recomp.exe`. The setup window asks for your disc image (`.iso`, XISO or full redump
    image) and the folder to install into (it suggests one). Press **Go**.
 3. The setup copies itself into that folder (with the folders below, each with a short `README.txt`) and sets
    everything up there, the progress in the same window:
    - the image is checked, extracted and verified,
-   - the compiler ([llvm-mingw](https://github.com/mstorsjo/llvm-mingw), a fixed release, in the zip's
-     `tools\download\`) is checked by its SHA-256 and unpacked – only if that file is missing is it downloaded,
+   - the compiler ([llvm-mingw](https://github.com/mstorsjo/llvm-mingw), a fixed release, pruned to what the game
+     needs, in the zip's `tools\`) is used from there - nothing is downloaded,
    - the game's code is translated and compiled on your PC (a few minutes, only once - about 4 on a 6-core
      laptop).
 4. Press **Play**. Later, start `Panzer Dragoon Orta Recomp.exe` in the install folder - it goes straight into the
@@ -164,6 +166,20 @@ version(s): Europe. Please provide a supported version."*
 
 Already have an extracted disc? Put the files (or one image) into `game\` next to the exe and start it there - it
 installs in place, as before.
+
+### First start (Linux)
+1. Download `Panzer_Dragoon_Orta_Recomp-<version>-x86_64.AppImage` from the release page and put it into a folder
+   of its own (everything the port writes goes into that folder, beside the AppImage).
+2. Make it executable (`chmod +x Panzer_Dragoon_Orta_Recomp-*.AppImage`, or in your file manager's properties).
+3. Put your disc image (`.iso`) or the extracted disc into a folder `game/` beside the AppImage - or start it once
+   with `--image /path/to/your.iso`.
+4. Start the AppImage. A progress window checks and extracts the image and builds the game (a few minutes, only
+   once; clang, Python and everything else needed ship inside the AppImage, nothing is downloaded); then the game
+   starts. Every later start goes straight into the game.
+5. If it does not start because FUSE is missing, run it with `--appimage-extract-and-run` as the first argument.
+
+The folders beside the AppImage are the same as on Windows (`game/`, `media/`, `saves/`, `data/`); nothing is
+written to `~/.config` or `~/.local/share`.
 
 ### Updating from an earlier version
 Unpack the new zip over the old folder. The game is built once more at the next start (a few minutes); your
@@ -262,7 +278,9 @@ delete the `bind.` lines from `saves\settings.ini`.
   freeze at the end of episode 3 fixed; less memory.
 - **v1.0.0:** playable to the end credits - fixes for episodes 3, 6 and 7, the red special effect and the Saturn
   entry; Japanese; 21:9 at the monitor's exact ratio.
-- **Next release:** Linux and Android versions; the episode-2 smear and fixes from your reports.
+- **v1.1.0:** Linux (AppImage); a smaller Windows zip without any download; the options help texts complete again;
+  every controller drives the game. Android in its own repository.
+- **Next release:** the episode-2 smear and fixes from your reports.
 - **Later:** 120 fps (the game's logic decoupled from the frame rate).
 
 ### Non-goals

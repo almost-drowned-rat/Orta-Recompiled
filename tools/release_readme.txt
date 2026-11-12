@@ -5,18 +5,18 @@ This download contains no game data, no game code and no keys. You need your own
 
 AI disclosure:  AI assistance yes (Claude Code by Anthropic).
 
-The port is playable (tested through episode 4) but not finished yet. Expect bugs I have not found myself - please report them
-as issues on GitHub, I will try to fix every reported bug as fast as I can.
+The port is playable from the first episode to the end credits - I played it through myself. If you still find a bug,
+please report it as an issue on GitHub, I will try to fix every reported bug as fast as I can.
 
 Start:
   1. Unpack this zip (keep the tools\ folder next to the exe) and start 'Panzer Dragoon Orta Recomp.exe'.
   2. The setup window asks for two things: your disc image (.iso) and the folder to install into.
      Press Go.
-  3. No internet needed: the compiler (llvm-mingw, in tools\download\, checked by its SHA-256) is copied
+  3. No internet needed: the compiler (llvm-mingw, in tools\bundle\, checked by its SHA-256) is copied
      along and unpacked, then the game's code is translated and compiled on your PC - a few GB of disk
      space and some minutes. Then press Play. Later, start 'Panzer Dragoon Orta Recomp.exe' in the install
-     folder - it goes straight into the game. Only if tools\download\ is missing is the compiler downloaded
-     (about 190 MB).
+     folder - it goes straight into the game. Nothing is ever downloaded: if tools\bundle\ is missing or
+     damaged, download this release zip again.
   Your disc image is only read; it is never changed or deleted.
 
 Requirements: a GPU with Vulkan 1.3; your own Panzer Dragoon Orta (Europe) disc

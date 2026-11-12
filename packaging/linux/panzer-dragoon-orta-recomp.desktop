@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Panzer Dragoon Orta Recomp
+Comment=Static recompilation of Panzer Dragoon Orta (Xbox, Europe) - needs your own disc image
+Exec=panzer-dragoon-orta-recomp
+Icon=panzer-dragoon-orta-recomp
+Terminal=false
+Categories=Game;ActionGame;

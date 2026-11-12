@@ -328,8 +328,9 @@ static void go(HWND hwnd, Win *w)
     }
     write_media_readme(target);
     {
-        /* the release zip's tools\download\ (the pinned compiler zip, so the first start needs no internet; see
-         * tools/release_zip.ps1) goes along into the install folder; without it the toolkit downloads the compiler */
+        /* the release zip's tools\bundle\ (the pinned compiler zip, so the first start needs no internet; see
+         * tools/release_zip.ps1) goes along into the install folder; the launcher never downloads (toolchain.txt
+         * format 2, option-c 3b73415) - a failed copy ends in its "package is incomplete" message */
         wchar_t sdir[MAX_PATH], pat[MAX_PATH + 40], from[MAX_PATH + 300], to[MAX_PATH * 2 + 340], *s;
         WIN32_FIND_DATAW fd;
         HANDLE f;
@@ -337,11 +338,11 @@ static void go(HWND hwnd, Win *w)
         s = wcsrchr(sdir, L'\\');
         if (s)
             *s = 0;
-        _snwprintf(pat, MAX_PATH + 40, L"%ls\\tools\\download\\*.zip", sdir);
+        _snwprintf(pat, MAX_PATH + 40, L"%ls\\tools\\bundle\\*.zip", sdir);
         pat[MAX_PATH + 39] = 0;
         f = _wcsicmp(self, dst) != 0 ? FindFirstFileW(pat, &fd) : INVALID_HANDLE_VALUE;
         if (f != INVALID_HANDLE_VALUE) {
-            _snwprintf(to, MAX_PATH * 2 + 340, L"%ls\\tools\\download", target);
+            _snwprintf(to, MAX_PATH * 2 + 340, L"%ls\\tools\\bundle", target);
             to[MAX_PATH * 2 + 339] = 0;
             SHCreateDirectoryExW(NULL, to, NULL);
             set_status(hwnd, w, L"Copying the compiler into the install folder ...", 0);
@@ -349,11 +350,11 @@ static void go(HWND hwnd, Win *w)
             do {
                 if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
                     continue;
-                _snwprintf(from, MAX_PATH + 300, L"%ls\\tools\\download\\%ls", sdir, fd.cFileName);
+                _snwprintf(from, MAX_PATH + 300, L"%ls\\tools\\bundle\\%ls", sdir, fd.cFileName);
                 from[MAX_PATH + 299] = 0;
-                _snwprintf(to, MAX_PATH * 2 + 340, L"%ls\\tools\\download\\%ls", target, fd.cFileName);
+                _snwprintf(to, MAX_PATH * 2 + 340, L"%ls\\tools\\bundle\\%ls", target, fd.cFileName);
                 to[MAX_PATH * 2 + 339] = 0;
-                CopyFileW(from, to, FALSE);   /* a failed copy only means the toolkit downloads it */
+                CopyFileW(from, to, FALSE);   /* a failed copy: the launcher says the package is incomplete */
             } while (FindNextFileW(f, &fd));
             FindClose(f);
         }

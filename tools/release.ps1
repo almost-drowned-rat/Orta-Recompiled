@@ -14,7 +14,11 @@
 # "../src/recomp_manual.c"); no shader module (no librashader.dll). Staging in a NEW folder below private\release\.
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console status output only.')]
 param(
-    [Parameter(Mandatory)] [string]$Version
+    [Parameter(Mandatory)] [string]$Version,
+    # the shipped compiler zip cut to x86-64 (toolkit tools/release/prune_llvm_mingw.py, option-c 81fe587; 181 ->
+    # 76 MB): made once from the pinned zip into the release cache, checked by its --smoke build (maintainer
+    # 2026-11-10: slim packages from v1.1.0 on, the first start must not get slower - tools\release E2E times it)
+    [switch]$Slim
 )
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "paths.ps1")   # $Repo, $Private, $ToolsRoot, $Shared, $Toolkit
@@ -221,7 +225,28 @@ try {
              @("cc`t" + ($cc -join "`t")) + $srcLines + @("gen`t*.c", "rc`t{TOOLS}/src/assets/orta.rc`t/I`t{TOOLS}/src/assets",
              ("link`t" + ($link -join "`t")))
     [IO.File]::WriteAllText("$P\build.txt", (($build -join "`r`n") + "`r`n"), $utf8)
-    $tcl = @("url`t$($Toolchain.url)", "sha256`t$($Toolchain.sha256)", "size`t$($Toolchain.size)", "folder`t$($Toolchain.folder)")
+    # toolchain.txt format 2 (option-c 3b73415): no URL - the compiler zip ships in the release zip's tools\bundle\
+    # (tools\release_zip.ps1) and the launcher only checks + unpacks it into tools\llvm-mingw; paths relative to tools\
+    $zipName = Split-Path -Leaf $Toolchain.url
+    if ($Slim) {
+        $full = Join-Path $Cache $zipName
+        $zipName = $zipName -replace '\.zip$', '-slim.zip'
+        $slimZip = Join-Path $Cache $zipName
+        if (-not (Test-Path -LiteralPath $slimZip)) {
+            if ((Get-FileHash -LiteralPath $full).Hash -ne $Toolchain.sha256.ToUpperInvariant()) { throw "$full is not the pinned llvm-mingw zip" }
+            $py = Join-Path $env:LOCALAPPDATA "Programs\Python\Python312\python.exe"
+            & $py -I (Join-Path $Toolkit "tools\release\prune_llvm_mingw.py") $full $slimZip --smoke
+            if ($LASTEXITCODE -ne 0) { if (Test-Path -LiteralPath $slimZip) { Remove-Item -LiteralPath $slimZip }; throw "prune_llvm_mingw.py failed" }
+        }
+        $Toolchain.sha256 = (Get-FileHash -LiteralPath $slimZip).Hash.ToLowerInvariant()
+        $Toolchain.size = [string](Get-Item -LiteralPath $slimZip).Length
+        Write-Host "slim compiler zip: $zipName ($([math]::Round([int64]$Toolchain.size / 1MB, 1)) MB)"
+    }
+    $tcl = @("format`t2",
+             "clang`tllvm-mingw/bin/clang.exe",
+             "python`tpython/python.exe",
+             "rc`tllvm-mingw/bin/llvm-rc.exe",
+             "bundle`tbundle/$zipName`t$($Toolchain.sha256)`t$($Toolchain.size)`t$($Toolchain.folder)`tllvm-mingw")
     [IO.File]::WriteAllText("$P\toolchain.txt", (($tcl -join "`r`n") + "`r`n"), $utf8)
     [IO.File]::WriteAllText("$P\README.txt", ("Panzer Dragoon Orta Recomp $Version - files the launcher unpacked (tools\).`r`nAI disclosure:  AI assistance yes (Claude Code by Anthropic).`r`n" +
         "Nothing here is game code or game data: the game is translated from your own disc image on your machine.`r`n" +

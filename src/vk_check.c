@@ -45,6 +45,10 @@ int orta_vk_check(char *found, size_t n)
     const char *lib = "vulkan-1.dll";
 #elif defined(__APPLE__)
     const char *lib = "libvulkan.1.dylib";
+#elif defined(__ANDROID__)
+    /* the APK's Vulkan library (packaging/android vkshim): the system driver, or Turnip on Adreno GPUs without 1.3
+       (Android has no libvulkan.so.1 - S23 2026-11-11: "no Vulkan driver found") */
+    const char *lib = "libvulkan_orta.so";
 #else
     const char *lib = "libvulkan.so.1";
 #endif
@@ -146,6 +150,15 @@ int orta_vk_check(char *found, size_t n)
 
 void orta_vk_message(char *out, size_t n, const char *found)
 {
+#ifdef __ANDROID__
+    snprintf(out, n,
+             "I am sorry - Panzer Dragoon Orta Recomp unfortunately only supports devices whose graphics driver has "
+             "at least Vulkan 1.3, and this device does not have it.\n\n"
+             "Found: %s\n\n"
+             "A system update sometimes adds Vulkan 1.3. If the device is too old, the game cannot run on it.",
+             found && *found ? found : "nothing");
+    return;
+#endif
     snprintf(out, n,
              "I am sorry - Panzer Dragoon Orta Recomp unfortunately only supports graphics cards with at least "
              "Vulkan 1.3, and this PC does not have one.\n\n"

@@ -99,6 +99,12 @@ extern int recomp_dispatch_init(void);   /* generated */
  * runs on it. Static, so the watchdog and crash handler can still read it. */
 static X86Ctx s_main_ctx = X86CTX_INIT;
 
+#ifdef __ANDROID__
+/* Android: the game is a library built on the phone (libORTA_game.so); the APK's libmain.so (packaging/android,
+ * loader.c) dlopen()s it after the first-start build and calls this */
+#define main orta_game_main
+int orta_game_main(int argc, char **argv);
+#endif
 int main(int argc, char **argv)
 {
     X86Ctx *ctx = &s_main_ctx;
