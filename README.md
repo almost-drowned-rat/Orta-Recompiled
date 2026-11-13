@@ -13,9 +13,9 @@ settings menu inside the game.
 > **AI disclosure:**  AI assistance yes (Claude Code by Anthropic).
 
 > **v1.1.1:** MSAA now smooths the whole 3D scene, and a new **bloom** option with an adjustable strength - all
-> picture settings are together in **POST PROCESSING**. Since v1.1.0 also on **Linux** (one AppImage). Playable from the first episode to the end credits - I played it
+> picture settings are together in **POST PROCESSING**. Since v1.1.0 also on **Linux** (AppImage, or since v1.1.1 also a plain `.tar.gz`). Playable from the first episode to the end credits - I played it
 > through myself. If you still find a bug, please report it as an issue, I will try to fix each one as fast as I can.
-> An **Android** experiment (v0.1.0) lives in its own repository: [Orta-Recompiled-Android](https://github.com/almost-drowned-rat/Orta-Recompiled-Android).
+> An **Android** experiment (v0.1.1) lives in its own repository: [Orta-Recompiled-Android](https://github.com/almost-drowned-rat/Orta-Recompiled-Android).
 
 ---
 
@@ -136,7 +136,7 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
   the start and names your GPU, its Vulkan version and what it lacks.
 - Your own copy of *Panzer Dragoon Orta* (Europe / PAL)
 - About **7 GB** of free disk space during the first start (the image and its extracted files), about **4 GB**
-  afterwards. **No internet needed:** the compiler ships inside the release zip / AppImage.
+  afterwards. **No internet needed:** the compiler ships inside the release zip / AppImage / `.tar.gz`.
 
 ### Supported version
 
@@ -180,9 +180,22 @@ installs in place, as before.
 The folders beside the AppImage are the same as on Windows (`game/`, `media/`, `saves/`, `data/`); nothing is
 written to `~/.config` or `~/.local/share`.
 
+### First start (Linux, without AppImage)
+The same program also comes as `Panzer_Dragoon_Orta_Recomp-<version>-x86_64.tar.gz` - the AppImage's contents,
+unpacked, for systems without FUSE or if you prefer plain folders.
+1. Unpack it anywhere (`tar -xzf Panzer_Dragoon_Orta_Recomp-*.tar.gz`); it makes one folder
+   `Panzer_Dragoon_Orta_Recomp-<version>-x86_64/`.
+2. Start `./panzer-dragoon-orta-recomp` in that folder (terminal or double-click); with `--image /path/to/your.iso`
+   or with your disc image in `game/` inside that folder. The first start builds the game as above.
+
+Everything the port writes (`game/`, `media/`, `saves/`, `data/`) goes into that folder, next to the start script;
+`app/` holds the program itself and is never written to. The licences are in
+`app/usr/share/panzer-dragoon-orta-recomp/tools/licenses/`.
+
 ### Updating from an earlier version
 Unpack the new zip over the old folder. The game is built once more at the next start (a few minutes); your
-`saves\` and `media\` stay.
+`saves\` and `media\` stay. **Linux:** replace the AppImage in its folder - or unpack the new `.tar.gz` and move
+your `game/`, `media/` and `saves/` into the new folder; they stay as they are.
 
 > **Windows warning:** the exe is not signed. **SmartScreen** shows "Windows protected your PC" – click
 > **More info → Run anyway**. **Smart App Control** (Windows 11) blocks unsigned apps completely; the port can only
@@ -279,7 +292,8 @@ delete the `bind.` lines from `saves\settings.ini`.
   entry; Japanese; 21:9 at the monitor's exact ratio.
 - **v1.1.0:** Linux (AppImage); a smaller Windows zip without any download; the options help texts complete again;
   every controller drives the game. Android in its own repository.
-- **v1.1.1:** POST PROCESSING in RECOMP OPTIONS; MSAA on the whole 3D scene; bloom with an adjustable strength.
+- **v1.1.1:** POST PROCESSING in RECOMP OPTIONS; MSAA on the whole 3D scene; bloom with an adjustable strength; Linux also as
+  `.tar.gz`.
 - **Next release:** the episode-2 smear and fixes from your reports.
 - **Later:** 120 fps (the game's logic decoupled from the frame rate).
 
