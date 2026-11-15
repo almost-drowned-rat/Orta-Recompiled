@@ -12,8 +12,9 @@ settings menu inside the game.
 
 > **AI disclosure:**  AI assistance yes (Claude Code by Anthropic).
 
-> **v1.1.1:** MSAA now smooths the whole 3D scene, and a new **bloom** option with an adjustable strength - all
-> picture settings are together in **POST PROCESSING**. Since v1.1.0 also on **Linux** (AppImage, or since v1.1.1 also a plain `.tar.gz`). Playable from the first episode to the end credits - I played it
+> **v1.1.2:** menu text at 16:10 / 21:9 fixed, and **MENU BUTTONS** in CONTROLS keeps A = confirm / B = cancel in
+> menus whatever your button mapping says. Since v1.1.1 MSAA smooths the whole 3D scene, with an optional **bloom** -
+> all picture settings are together in **POST PROCESSING**. Since v1.1.0 also on **Linux** (AppImage, or since v1.1.1 also a plain `.tar.gz`). Playable from the first episode to the end credits - I played it
 > through myself. If you still find a bug, please report it as an issue, I will try to fix each one as fast as I can.
 > An **Android** experiment (v0.1.1) lives in its own repository: [Orta-Recompiled-Android](https://github.com/almost-drowned-rat/Orta-Recompiled-Android).
 
@@ -83,7 +84,7 @@ back to its default** - only that line. Every change is kept when you leave the 
 |---|---|
 | **PRACTICE** | The game's practice missions (flying, aiming, dragon forms). |
 | **SOUND** | The game's own volumes, and **SPEAKERS**: stereo or 5.1 (the game's own surround mix; applies after a restart, needs a 5.1 output device). |
-| **CONTROLS** | AIMING (normal / inverted), VIBRATION and **BUTTON MAPPING** (keyboard or controller, then remap its buttons). |
+| **CONTROLS** | AIMING (normal / inverted), VIBRATION, **BUTTON MAPPING** (keyboard or controller, then remap its buttons) and **MENU BUTTONS** (FIXED: A confirms / B cancels in menus whatever the mapping says - the default; AS MAPPED: menus follow the mapping). |
 | **RECOMP OPTIONS** | All port settings (see below). |
 
 ### RECOMP OPTIONS
@@ -294,6 +295,7 @@ delete the `bind.` lines from `saves\settings.ini`.
   every controller drives the game. Android in its own repository.
 - **v1.1.1:** POST PROCESSING in RECOMP OPTIONS; MSAA on the whole 3D scene; bloom with an adjustable strength; Linux also as
   `.tar.gz`.
+- **v1.1.2:** menu text at 16:10 / 21:9 back in place; MENU BUTTONS in CONTROLS (A / B fixed in menus).
 - **Next release:** the episode-2 smear and fixes from your reports.
 - **Later:** 120 fps (the game's logic decoupled from the frame rate).
 

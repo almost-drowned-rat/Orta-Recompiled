@@ -428,8 +428,9 @@ static void keep_start_env(int argc, char **argv)
  * one waits for this pid to be gone (--restart-wait) before it opens the log. From an AppImage the AppImage file is
  * started again, not the mounted copy (the mount goes away with this process). */
 #ifdef __ANDROID__
-/* An app cannot exec itself: OrtaActivity.restartApp() (packaging/android) schedules a fresh launch of the
- * activity and ends this process; the settings are already saved. */
+/* An app cannot exec itself: OrtaActivity.restartApp() (packaging/android) starts RestartActivity in its own
+ * process (it waits for this one to end, then starts the game again); this process ends; the settings are already
+ * saved. */
 void host_restart(void)
 {
     JNIEnv *env = (JNIEnv *)SDL_GetAndroidJNIEnv();

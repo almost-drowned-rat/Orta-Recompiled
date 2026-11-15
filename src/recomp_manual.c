@@ -560,11 +560,63 @@ void sub_0025E9A0(RECOMP_PARAMS)
  * pad recorder) counts them: called once per XInputGetState for the port the handle was opened on.
  * XInputOpen notes handle -> port; behaviour of both functions is unchanged (the generated code runs). */
 #include "xinput_xbox.h"   /* toolkit: xbox_InputTitleRead */
+#include "xinput_bind.h"   /* toolkit: xbox_InputBindSetMenu (MENU BUTTONS) */
+#include <SDL3/SDL.h>      /* SDL_GetTicks */
 
 extern void sub_0030917C_gen(RECOMP_PARAMS);
 extern void sub_003093BC_gen(RECOMP_PARAMS);
 
 static uint32_t orta_pad_handle[4];
+
+/* MENU BUTTONS (GitHub #5; the CONTROLS line, RV_MENUBTN below): "menu" for the binding = everything but flight -
+ * title, options, pause, cut scenes, score and save screens. Flight = the flight HUD's gauge drawer (sub_0002F040)
+ * ran in the last 200 ms and the pause handler (sub_001B4BA0, every frame while paused) did not. (The dragon's section
+ * counter +0x06C was tried first: it stood still at 6 through a whole flight in a test run.) Checked at every
+ * pad read and every
+ * 2D draw (sub_0006A520); with AS MAPPED the toolkit's menu flag is not set at all (its menu rules stay off, as up to
+ * v1.1.1). s_in_flight is kept either way: the HUD moves to the screen edges only in flight (GitHub #4).
+ * ORTA_FLIGHT_LOG=1: one line every 2 s (pointer, counter, state) for diagnosis. */
+static int s_menubtn_fixed = 1;                 /* rv_apply(RV_MENUBTN) */
+static uint32_t s_flight_sec, s_flight_ms, s_pause_ms, s_flight_log_ms;
+static volatile uint32_t s_hud_ms;              /* the flight HUD's gauge drawer last ran (sub_0002F040 below) */
+/* sub_0002F040: the flight HUD's health gauge (reads the dragon's health through sub_0002EA90, the only caller of it)
+ * - it runs every frame the flight HUD is on screen. */
+extern void sub_0002F040_gen(RECOMP_PARAMS);
+void sub_0002F040(RECOMP_PARAMS)
+{
+    s_hud_ms = (uint32_t)SDL_GetTicks() | 1u;
+    sub_0002F040_gen(ctx, base);
+}
+static int s_flight_menu = -1, s_flight_log = -1;
+static volatile int s_in_flight;                /* also for the HUD-to-edges move (GitHub #4, sub_0006A520) */
+static void orta_menu_buttons_tick(void)
+{
+    uint32_t p = GUEST32(0x474230u), now = (uint32_t)SDL_GetTicks(), sec = 0;
+    int menu, ok = p >= 0x10000u && p < 0x3FF0000u;
+    if (ok) sec = GUEST32(p + 0x06Cu);
+    if (sec != s_flight_sec) { s_flight_sec = sec; }
+    s_flight_ms = s_hud_ms;
+    menu = !(s_hud_ms && now - s_hud_ms < 200u && (!s_pause_ms || now - s_pause_ms >= 200u));
+    if (s_in_flight != !menu) {
+        static unsigned s_flight_logs;
+        if (s_flight_logs++ < 64u)
+            fprintf(stderr, "[ORTA] %s (dragon %08X, section counter %u)\n", menu ? "menu" : "flight", (unsigned)p,
+                    (unsigned)sec);
+    }
+    if (s_flight_log < 0) { const char *e = getenv("ORTA_FLIGHT_LOG"); s_flight_log = e && *e == '1'; }
+    if (s_flight_log && now - s_flight_log_ms >= 2000u) {
+        s_flight_log_ms = now;
+        fprintf(stderr, "[FLIGHT] t %u dragon %08X counter %u, HUD %u ms ago, pause %u ms ago -> %s\n", (unsigned)now,
+                (unsigned)p, (unsigned)sec, s_hud_ms ? (unsigned)(now - s_hud_ms) : 0u,
+                s_pause_ms ? (unsigned)(now - s_pause_ms) : 0u, menu ? "menu" : "flight");
+    }
+    s_in_flight = !menu;
+    if (!s_menubtn_fixed) return;
+    if (menu != s_flight_menu) {
+        s_flight_menu = menu;
+        xbox_InputBindSetMenu(menu);
+    }
+}
 
 void sub_0030917C(RECOMP_PARAMS)
 {
@@ -577,6 +629,7 @@ void sub_0030917C(RECOMP_PARAMS)
 void sub_003093BC(RECOMP_PARAMS)
 {
     uint32_t h = GUEST32(g_esp + 4);
+    orta_menu_buttons_tick();
     for (int p = 0; p < 4; p++) {
         if (h && orta_pad_handle[p] == h) {
             xbox_InputTitleRead(p);
@@ -1043,7 +1096,7 @@ static const signed char k_opt_rows[OPT_V_N][9] = {
     /* TOP: PRACTICE (line 0, its AIMING value parked; maintainer 2026-11-04 late: ÜBUNG moves here as the first line),
      * ANZEIGE, SOUND, CONTROLS, RECOMP (maintainer 2026-11-04 ~08:00) */
     {          0, -1,  3, -1, -1, -1,  1,  2,  4 },
-    {          0,  1,  2, -1, -1, -1, -1, -1, -1 },   /* CONTROLS */
+    {          0,  1,  2, -1, -1, -1,  3, -1, -1 },   /* CONTROLS: AIMING, VIBRATION, BUTTON MAPPING, MENU BUTTONS (6) */
     {         -1, -1, -1,  0,  1,  2,  3, -1, -1 },   /* SOUND: BGM / SE / STIMMEN, SPEAKERS (line 6, port value) */
 #ifdef __ANDROID__
     /* Android: no DISPLAY MODE (the app is always full screen, the line has no function there) - line 1 hidden,
@@ -1104,7 +1157,7 @@ void nv2a_vk_set_bloom(int strength);      /* toolkit: 0 = off, 1 .. NV2A_VK_BLO
 
 typedef struct { const char *label, *key, *def; const char *val[12], *txt[12]; int n; } opt_val_t;
 enum { RV_DISPLAY, RV_RENDER, RV_ASPECT, RV_ANISO, RV_LANGUAGE, RV_AA, RV_FRAMERATE, RV_VSYNC, RV_FPSHUD, RV_BOOT,
-       RV_PACING, RV_FOV, RV_SPEAKERS, RV_BLOOM, RV_BLOOMSTR, RV_N };
+       RV_PACING, RV_FOV, RV_SPEAKERS, RV_BLOOM, RV_BLOOMSTR, RV_MENUBTN, RV_N };
 static const opt_val_t k_rv[RV_N] = {
     /* index = NV2A_VK_AA_*; applied at once if the device can (nv2a_vk_antialiasing_fits), else refused */
     [RV_AA]       = { "ANTIALIASING", "antialiasing", "fxaa", { "off", "fxaa", "smaa", "msaa2", "msaa4" },
@@ -1147,6 +1200,10 @@ static const opt_val_t k_rv[RV_N] = {
     [RV_BLOOM]    = { "BLOOM", "bloom", "off", { "off", "on" }, { "OFF", "ON" }, 2 },
     [RV_BLOOMSTR] = { "BLOOM STRENGTH", "bloom_strength", "5", { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" },
                       { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" }, 10 },
+    /* MENU BUTTONS (GitHub #5, maintainer 2026-11-15: a switch of its own in CONTROLS, default FIXED as the original
+     * game): FIXED = outside flight A and B stay on their default button / key whatever BUTTON MAPPING says (toolkit
+     * xbox_InputBindSetMenuFixed, orta_menu_buttons_tick below), AS MAPPED = the binding everywhere (as up to v1.1.1) */
+    [RV_MENUBTN]  = { "MENU BUTTONS", "menu_buttons", "fixed", { "fixed", "mapped" }, { "FIXED", "AS MAPPED" }, 2 },
     [RV_ANISO]    = { "ANISOTROPIC FILTER", "anisotropic_filter", "16", { "off", "2", "4", "8", "16" },
                       { "OFF", "2X", "4X", "8X", "16X" }, 5 },
     /* SYSTEM = the host's UI language if the disc has it (toolkit xbox_settings, else English) - as before this line */
@@ -1179,6 +1236,8 @@ static const opt_pl_t k_pl[OPT_V_N][9] = {
     /* SOUND: the game's three volumes (stock lines 3-5) + SPEAKERS on stock line 6 (ANZEIGE SICHTBAR, its value
      * sprites parked) - maintainer 2026-11-07 ~23:45: the 5.1 choice in the game's SOUND options */
     [OPT_V_SOUND]  = { [6] = { PL_VAL, RV_SPEAKERS } },
+    /* CONTROLS: the game's AIMING / VIBRATION + BUTTON MAPPING, MENU BUTTONS on stock line 6 (as SPEAKERS in SOUND) */
+    [OPT_V_CONTROLS] = { [6] = { PL_VAL, RV_MENUBTN } },
 };
 
 /* The game's gamma ramp on screen: sub_002AA6A0 = the XDK's D3DDevice_SetGammaRamp(Flags, pRamp) (lifted), called
@@ -1272,7 +1331,7 @@ void orta_boot_video(void)
 }
 static const opt_pl_t *opt_pl(int view, int line)
 {
-    return (view >= OPT_V_RECOMP || view == OPT_V_SOUND) && view < OPT_V_N && line >= 0 && line < 9
+    return (view >= OPT_V_RECOMP || view == OPT_V_SOUND || view == OPT_V_CONTROLS) && view < OPT_V_N && line >= 0 && line < 9
                ? &k_pl[view][line] : NULL;
 }
 
@@ -1370,6 +1429,13 @@ static void rv_apply(int id)
     if (id == RV_BLOOM || id == RV_BLOOMSTR)
         nv2a_vk_set_bloom(rv_index(RV_BLOOM) ? rv_index(RV_BLOOMSTR) + 1 : 0);
     if (id == RV_FOV) s_fov_units = -1;          /* the camera call picks the new value up (at once) */
+    if (id == RV_MENUBTN) {                      /* at once; orta_menu_buttons_tick sets menu / flight */
+        int fixed = rv_index(RV_MENUBTN) == 0;
+        xbox_InputBindSetMenuFixed(fixed ? (1u << XBOX_KEY_A) | (1u << XBOX_KEY_B) : 0u);
+        s_menubtn_fixed = fixed;
+        s_flight_menu = -1;                      /* the next pad read sets menu / flight again */
+        if (!fixed) xbox_InputBindSetMenu(0);    /* AS MAPPED: the binding everywhere, as up to v1.1.1 */
+    }
 }
 
 /* the text of a port view line into out (upper case, the menu font's letters; no '>' in the font) */
@@ -1526,6 +1592,8 @@ void orta_options_apply(void)
     rv_apply(RV_AA);
     rv_apply(RV_FPSHUD);
     rv_apply(RV_BLOOM);
+    rv_apply(RV_MENUBTN);
+    fprintf(stderr, "[OPT] menu buttons %s\n", k_rv[RV_MENUBTN].val[rv_index(RV_MENUBTN)]);
     fprintf(stderr, "[OPT] options: display %s, render scale %s, aspect %s, anisotropic filter %dx, antialiasing %s, "
             "fps counter %s, vsync %s, language %s, frame pacing %s, field of view %s, frame rate %s, speakers %s, "
             "bloom %s, bloom strength %s\n",
@@ -1701,6 +1769,104 @@ static void orta_diag_player_start(void)
 }
 void orta_diag_player_start_ext(void) { orta_diag_player_start(); }
 
+/* ── Touch aiming (2026-11-13; maintainer: "the reticle jumps under the finger", Android) ──────────────────────────
+ * Found on Linux by writing the dragon object [0x474230] while the pad script flew level 1 (test runs): +0x0D8 / +0x0DC the stick (-1..1, y up = -1), +0x0FC the aim cursor x and +0x0F8 (+ its
+ * copy +0x118) the cursor y, both about -50..50 and kept where the stick left them; +0x0B8 / +0x0BC the reticle's
+ * screen position in the 640x480 frame, worked out by the game from them each frame (26 random cursor values: within
+ * a few pixels of the green reticle in the screenshots). Writing +0x0FC / +0x0F8 / +0x118 moves the reticle; the game
+ * keeps flying the dragon after it as after the stick.
+ * The finger's place is a point in the frame; the cursor -> screen mapping is not linear (the camera follows the
+ * cursor), so a small loop moves the cursor until +0x0B8 / +0x0BC sit under the finger: about 3.5 px per cursor unit
+ * in x, 1.8 in y, half the error per game frame (a few frames to settle). Only while flying: the section frame counter
+ * +0x06C must run (it stands still in menus, pause, cut scenes) - orta_touch_aim(-1, ...) tells the caller so, and the
+ * Android overlay switches between its normal and its aiming layout on that.
+ * orta_touch_aim(down, x, y, w, h): x / y the finger in a w x h window (any unit); down 1 = aim there, 0 = finger up;
+ * returns 1 while aiming is possible. Any thread; the guest writes happen on one host thread of their own. */
+static SDL_AtomicInt s_aim_down, s_aim_live;
+static float s_aim_fx, s_aim_fy, s_aim_w, s_aim_h;    /* written under s_aim_mx */
+static SDL_Mutex *s_aim_mx;
+
+static int orta_aim_dragon(uint32_t *p_out)
+{
+    uint32_t p = GUEST32(0x474230u), form;
+    if (p < 0x10000u || p > 0x3FF0000u) return 0;
+    form = GUEST32(p + 0x01Cu);
+    if (form > 2u) return 0;                          /* episode 5's special stage: no dragon forms, no cursor */
+    *p_out = p;
+    return 1;
+}
+
+static float aim_f(uint32_t va) { uint32_t w = GUEST32(va); float f; memcpy(&f, &w, 4); return f; }
+static void aim_set(uint32_t va, float f) { uint32_t w; memcpy(&w, &f, 4); GUEST32(va) = w; }
+
+static int SDLCALL orta_aim_thread(void *unused)
+{
+    uint32_t last_sec = 0, last_change = 0;
+    float last_sx = -1.0f, last_sy = -1.0f;
+    (void)unused;
+    for (;;) {
+        uint32_t p, now = (uint32_t)SDL_GetTicks();
+        SDL_Delay(4);
+        if (!orta_aim_dragon(&p)) { SDL_SetAtomicInt(&s_aim_live, 0); continue; }
+        {
+            uint32_t sec = GUEST32(p + 0x06Cu);
+            if (sec != last_sec) { last_sec = sec; last_change = now; }
+            SDL_SetAtomicInt(&s_aim_live, now - last_change < 150u);
+        }
+        if (!SDL_GetAtomicInt(&s_aim_live) || !SDL_GetAtomicInt(&s_aim_down)) continue;
+        {
+            float fx, fy, w, h, a, rx, ry, rw, rh, tx, ty, sx, sy, cx, cy;
+            SDL_LockMutex(s_aim_mx);
+            fx = s_aim_fx; fy = s_aim_fy; w = s_aim_w; h = s_aim_h;
+            SDL_UnlockMutex(s_aim_mx);
+            if (w <= 0.0f || h <= 0.0f) continue;
+            /* the frame's place in the window: the aspect this process runs at (ASPECT RATIO, applied at start),
+             * centred and as large as fits - Android is always full screen, so no window crop */
+            {
+                int ai = s_rv_start[RV_ASPECT] >= 0 ? s_rv_start[RV_ASPECT] : rv_index(RV_ASPECT);
+                a = ai == 1 ? 16.0f / 9.0f : ai == 2 ? 1.6f : ai == 3 ? (float)orta_aspect_21x9() : 4.0f / 3.0f;
+            }
+            if (w / h > a) { rh = h; rw = h * a; } else { rw = w; rh = w / a; }
+            rx = (w - rw) * 0.5f; ry = (h - rh) * 0.5f;
+            tx = (fx - rx) / rw * 640.0f; ty = (fy - ry) / rh * 480.0f;
+            tx = tx < 0.0f ? 0.0f : tx > 640.0f ? 640.0f : tx;
+            ty = ty < 0.0f ? 0.0f : ty > 480.0f ? 480.0f : ty;
+            sx = aim_f(p + 0x0B8u); sy = aim_f(p + 0x0BCu);
+            if (!(sx == sx) || !(sy == sy)) continue;
+            /* one step per game frame: the screen position must have been worked out again since the last step */
+            if (sx == last_sx && sy == last_sy) continue;
+            last_sx = sx; last_sy = sy;
+            cx = aim_f(p + 0x0FCu) + 0.5f * (tx - sx) / 3.5f;
+            cy = aim_f(p + 0x0F8u) + 0.5f * (ty - sy) / 1.8f;
+            cx = cx < -50.0f ? -50.0f : cx > 50.0f ? 50.0f : cx;
+            cy = cy < -50.0f ? -50.0f : cy > 50.0f ? 50.0f : cy;
+            aim_set(p + 0x0FCu, cx);
+            aim_set(p + 0x0F8u, cy);
+            aim_set(p + 0x118u, cy);
+        }
+    }
+    return 0;
+}
+
+int orta_touch_aim(int down, float x, float y, float w, float h)
+{
+    static SDL_AtomicInt started;
+    if (SDL_CompareAndSwapAtomicInt(&started, 0, 1)) {
+        s_aim_mx = SDL_CreateMutex();
+        SDL_DetachThread(SDL_CreateThread(orta_aim_thread, "orta_touch_aim", NULL));
+        fprintf(stderr, "[AIM] touch aiming thread started\n");
+    }
+    if (down >= 0) {
+        if (s_aim_mx) {
+            SDL_LockMutex(s_aim_mx);
+            s_aim_fx = x; s_aim_fy = y; s_aim_w = w; s_aim_h = h;
+            SDL_UnlockMutex(s_aim_mx);
+        }
+        SDL_SetAtomicInt(&s_aim_down, down ? 1 : 0);
+    }
+    return SDL_GetAtomicInt(&s_aim_live);
+}
+
 /* ── ASPECT RATIO 16:10 / 21:9 and FIELD OF VIEW (night order 2026-11-07) ───────────────────────────────────────────
  * Orta's own widescreen (the console's XC_VIDEO widescreen bit; flag copy 0x342754) widens the picture by one factor,
  * the float 4/3 at 0x30993C, in four places that test the flag:
@@ -1810,7 +1976,12 @@ void sub_0006A520(RECOMP_PARAMS)
     int n = s_hud_n, i, j;
     uint32_t lo = GUEST32(0x46F894u), hi = GUEST32(0x46F890u);
     s_hud_n = 0;
-    if (f > 0.0f && n > 0) {
+    orta_menu_buttons_tick();                    /* every frame with 2D, menus and flight (not only at pad reads) */
+    /* GitHub #4 (2026-11-15): only in flight. The menus draw through the same sprite layer, and the move tore
+     * them apart - at 16:10 CONTROLS stepped right out of the OPTIONEN column, at 21:9 CONTROLS and the help box
+     * title OPTIONSMODUS jumped left (test runs at 16:10 and 21:9). Outside flight the 2D stays
+     * centre-squeezed - the menus' own layout at every aspect. */
+    if (f > 0.0f && n > 0 && s_in_flight) {
         static float bx0[ORTA_HUD_MAXQ], bx1[ORTA_HUD_MAXQ];
         static uint32_t bq[ORTA_HUD_MAXQ];
         float s16 = 0.75f * f;                       /* fb px -> 16:9 layout px (0.75 / q, q = 1 / f) */
@@ -2419,6 +2590,8 @@ static const char *opt_help_for(int view, uint32_t line)
         return "Up and down for aiming: normal or inverted.\nLeft or right to change, Y for the default.";
     if (view == OPT_V_CONTROLS && line == 2)
         return "Keys and buttons for the keyboard or the controller.\nPress A to open.";
+    if (view == OPT_V_CONTROLS && line == 6)
+        return "Fixed: in menus A confirms and B cancels,\nwhatever the button mapping says.\nLeft or right to change, Y for the default.";
     if (view == OPT_V_VIEW)
         return line == 0 ? "4:3 as the original, 16:9, 16:10 or 21:9.\nWider shows more at the sides.\nLeft or right, Y for the default. Needs a restart."
                          : "Degrees wider than the original camera.\nLeft or right to change, Y for the default.\nApplies at once.";
@@ -3323,6 +3496,7 @@ void sub_001B4BA0(RECOMP_PARAMS)
     uint32_t obj = g_ecx;
     static uint32_t last_st = 99;
     uint32_t st = obj ? GUEST32(obj + 0x134) : 0;
+    s_pause_ms = (uint32_t)SDL_GetTicks() | 1u;   /* MENU BUTTONS / HUD move: the pause is a menu */
     if (obj && pm_on()) {
         uint32_t in = GUEST32(PM_INPUT), keep = in, cur = GUEST32(obj + 0x138), ret;
         pm_patch_texts();

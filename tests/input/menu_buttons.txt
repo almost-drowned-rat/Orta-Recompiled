@@ -1,0 +1,15 @@
+# menu_buttons.txt - Orta (PAL), CONTROLS > MENU BUTTONS (GitHub #5). Run with the keyboard's B moved to P:
+# ORTA_BIND_KEYBOARD=b:sc19 (fresh saves). Main menu -> OPTIONEN (as shots_tour.txt), then in the options TOP: P (the
+# bound B) and L (the default B key), a shot after each.
+#   menu_buttons=fixed (default):                 P does nothing in the menu (shot 02 = still OPTIONEN), L goes back
+#                                                 (03 = main menu)
+#   menu_buttons=mapped (ORTA_MENU_BUTTONS=mapped): P goes back (02 = main menu), L does nothing
+39000:start:200
+45000:down:200
+47000:down:200
+52000:a:200
+56000:shot=01_options_top
+58000:key=19:200
+61000:shot=02_after_p
+63000:key=15:200
+66000:shot=03_after_l
