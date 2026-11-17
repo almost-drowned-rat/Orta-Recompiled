@@ -66,8 +66,7 @@ they appear.
 what option-c brings - not to rank anyone's work. Each of them has its own strengths, and these are numbers from one
 machine and one scene set; all three projects are young and will change. They also serve different players:
 Orta_PC_Recomp runs on DirectX 11, so it also supports older hardware; ortarecomp brings its own extras (frame
-interpolation, Lossless Scaling frame generation, the original Panzer Dragoon from Pandora's Box) and runs on Linux and
-the Steam Deck too. Both target the USA version; this port is the PAL version and needs a GPU with Vulkan 1.3.
+interpolation, Lossless Scaling frame generation). Both target the USA version; this port is the PAL version and needs a GPU with Vulkan 1.3.
 
 ---
 
