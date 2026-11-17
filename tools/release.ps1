@@ -132,6 +132,10 @@ try {
     Copy-Item "$Repo\assets\orta.rc", "$Repo\assets\icon.ico" "$P\src\assets"
     Copy-Item "$Repo\config\game.toml" "$P\config\game.toml"
     Copy-Item "$Repo\config\variants\*.toml" "$P\config\variants"
+    # the shipped pipeline list (keys only, no game data; src/main.c): the toolkit launcher copies tools/data/* into
+    # the install's data\ when missing or after a new release (maintainer 2026-11-16)
+    New-Item -ItemType Directory "$P\data" -Force | Out-Null
+    Copy-Item "$Repo\assets\pipelist_orta_pal.bin" "$P\data\pipelist_orta_pal.bin"
     New-Item -ItemType Directory "$P\sdk\build" -Force | Out-Null
     Copy-Item "$Build\port_icon.h" "$P\sdk\build\port_icon.h"
     Write-Host "headers: $nh; port sources: $($portObjs.Count)"
@@ -173,10 +177,14 @@ try {
         "# the lift (the same steps as tools\lift.ps1): name, then python's arguments; {XBE} {PIPE} {GEN} {TOOLS}",
         "mkdir`t{PIPE}/disasm`t{PIPE}/func_id`t{PIPE}/abi`t{PIPE}/recomp`t{GEN}",
         "xbe_parser`t-m`ttools.xbe_parser`t{XBE}`t--json`t{PIPE}/xbe.json`t--quiet",
-        "disasm`t-m`ttools.disasm`t{XBE}`t-o`t{PIPE}/disasm`t--analysis-json`t{PIPE}/xbe.json`t--force`t--game-config`t$cfg",
+        "disasm`t-m`ttools.disasm`t{XBE}`t-o`t{PIPE}/disasm`t--analysis-json`t{PIPE}/xbe.json`t--force`t--no-asm`t--game-config`t$cfg",
         "func_id`t-m`ttools.func_id`t{XBE}`t--functions`t{PIPE}/disasm/functions.json`t--strings`t{PIPE}/disasm/strings.json`t--xrefs`t{PIPE}/disasm/xrefs.json`t-o`t{PIPE}/func_id",
         "abi_analysis`t-m`ttools.abi_analysis`t{XBE}`t--disasm-dir`t{PIPE}/disasm`t--func-id-dir`t{PIPE}/func_id`t--output-dir`t{PIPE}/abi",
-        "recomp`t-m`ttools.recomp`t{XBE}`t--all`t--game-config`t$cfg`t--game-name`tORTA`t--gen-dir`t{GEN}`t--disasm-dir`t{PIPE}/disasm`t--func-id-dir`t{PIPE}/func_id`t--abi-dir`t{PIPE}/abi`t-o`t{PIPE}/recomp"
+        # --split 400 + a fresh weight-balanced partition layout: ~47 files of even compile cost instead of chunks of
+        # 1000 functions (one 12.6 MB file of 19 held the parallel compile back); --no-asm: no assembly listing. The
+        # toolkit's first-start speed-up (option-c 6a: first start 321 -> 222 s, peak RAM 3.2 -> 1.4 GB); the same
+        # lines as the toolkit's tools/release/port_release.ps1.
+        "recomp`t-m`ttools.recomp`t{XBE}`t--all`t--game-config`t$cfg`t--game-name`tORTA`t--gen-dir`t{GEN}`t--disasm-dir`t{PIPE}/disasm`t--func-id-dir`t{PIPE}/func_id`t--abi-dir`t{PIPE}/abi`t-o`t{PIPE}/recomp`t--split`t400`t--partitions`t{PIPE}/partitions.json`t--repartition"
     )
     [IO.File]::WriteAllText("$P\lift.txt", (($lift -join "`r`n") + "`r`n"), $utf8)
 

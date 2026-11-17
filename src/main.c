@@ -353,6 +353,19 @@ int main(int argc, char **argv)
 #if defined(ORTA_VULKAN)
     nv2a_vk_set_key_handler(xbox_InputKeyEvent);
     nv2a_vk_set_quit_handler(host_quit);
+    {
+        /* The shipped pipeline list (toolkit nv2a_vk.c "shipped pipeline list"; maintainer 2026-11-16): keys only,
+         * recorded in test play, shipped as data\pipelist_orta_pal.bin and prewarmed at the device's start, so the
+         * first session compiles less on the fly. data\ may be deleted at any time - then the first session
+         * compiles on the fly as before. RECOMP_VK_PIPELIST=<file> overrides it (runs with a fresh data\). */
+        static char pl[1024];
+        const char *e = getenv("RECOMP_VK_PIPELIST");
+        if (e && *e)
+            snprintf(pl, sizeof pl, "%s", e);
+        else
+            snprintf(pl, sizeof pl, "%s/pipelist_orta_pal.bin", opt.data_dir);
+        nv2a_vk_set_pipeline_list(pl);
+    }
     nv2a_vk_install();
     {
         extern void orta_options_apply(void);    /* recomp_manual.c: saved RECOMP OPTIONS values into the renderer */

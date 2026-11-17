@@ -12,10 +12,12 @@ settings menu inside the game.
 
 > **AI disclosure:**  AI assistance yes (Claude Code by Anthropic).
 
-> **v1.1.2:** menu text at 16:10 / 21:9 fixed, and **MENU BUTTONS** in CONTROLS keeps A = confirm / B = cancel in
-> menus whatever your button mapping says. Since v1.1.1 MSAA smooths the whole 3D scene, with an optional **bloom** -
-> all picture settings are together in **POST PROCESSING**. Since v1.1.0 also on **Linux** (AppImage, or since v1.1.1 also a plain `.tar.gz`). Playable from the first episode to the end credits - I played it
-> through myself. If you still find a bug, please report it as an issue, I will try to fix each one as fast as I can.
+> **v1.2.0:** far fewer shader stutters the first time an effect appears - the release ships a list of the game's
+> shader keys and builds them at the start, and what the list misses is built in the background. The first start
+> is about a third faster and needs less than half the memory. Since v1.1.2 **MENU BUTTONS** in CONTROLS keeps
+> A = confirm / B = cancel in menus; since v1.1.1 MSAA on the whole 3D scene and an optional **bloom** in
+> **POST PROCESSING**; since v1.1.0 also on **Linux** (AppImage or `.tar.gz`). Playable from the first episode to the
+> end credits - I played it through myself. If you still find a bug, please report it as an issue, I will try to fix each one as fast as I can.
 > An **Android** experiment (v0.1.1) lives in its own repository: [Orta-Recompiled-Android](https://github.com/almost-drowned-rat/Orta-Recompiled-Android).
 
 ---
@@ -35,30 +37,37 @@ and micro-benchmarks ([docs/option_c.md](https://github.com/almost-drowned-rat/x
 My earlier port, THPS 2X Recompiled, still runs on the older code model; Panzer Dragoon Orta is the first complete
 game on option-c.
 
-**Comparison** with SeveerJ's [Orta_PC_Recomp](https://github.com/SeveerJ/Orta_PC_Recomp) v0.8 (Experimental), an
-independently developed recompilation of the same game - measured 2026-11-08 on the same machine (laptop with an
-RTX 3050 Ti), both at 16:9, 480 lines, antialiasing off, windowed, 60 fps, matching scenes; CPU in cores busy, RAM =
-working set. Menus, movie and attract demo without input; gameplay = episode 1, played by hand in both:
+**Comparison** with two independently developed recompilations of the same game: SeveerJ's
+[Orta_PC_Recomp](https://github.com/SeveerJ/Orta_PC_Recomp) v0.8 (Experimental) and wootbeer's
+[ortarecomp](https://github.com/wootbeer/ortarecomp) v0.1.12 (beta), each the latest release. I measured all three on
+2026-11-17 in one session on the same machine (laptop with an RTX 3050 Ti), each at 16:9, 480 lines, antialiasing
+off, anisotropic filtering off, windowed, 60 fps (frame interpolation off); nothing else running. CPU in cores busy,
+RAM = working set (private memory in brackets). Menus, movie and attract demo without input, 300 s each; gameplay =
+episode 1 from a new game, played by hand in all three (the same 140 s window):
 
-| | Orta Recompiled | Orta_PC_Recomp v0.8 |
-|---|---|---|
-| CPU, menus | 0.16 | 0.26 |
-| CPU, movies | 0.19 | 0.35 |
-| CPU, attract demo (real-time 3D) | 0.29 | 0.79 |
-| CPU, gameplay (played) | 0.30 | 0.84 |
-| GPU load, menus / movies | 5.1 % / 5.0 % | 6.4 % / 3.0 % |
-| GPU load, attract demo | 6.8 % | 35.9 % |
-| GPU load, gameplay (played) | 8.4 % | 45.2 % |
-| RAM, menus / movies | 285 / 293 MB | 247 / 243 MB |
-| RAM, attract demo | 320 MB | 360 MB |
-| RAM, gameplay (played) | 391 MB | 388 MB |
+| | Orta Recompiled v1.2.0 | Orta_PC_Recomp v0.8 | ortarecomp v0.1.12 |
+|---|---|---|---|
+| CPU, menus | 0.25 | 0.31 | 1.33 |
+| CPU, movies | 0.24 | 0.39 | 0.66 |
+| CPU, attract demo (real-time 3D) | 0.45 | 0.96 | 0.57 |
+| CPU, gameplay (played) | 0.38 | 1.02 | 0.59 |
+| GPU, attract demo | 8 % at 1.5 GHz, 15.3 W | 41 % at 1.9 GHz, 26.6 W | 13 % at 1.5 GHz, 16.1 W |
+| GPU, gameplay (played) | 8 % at 1.5 GHz, 15.4 W | 41 % at 1.9 GHz, 26.4 W | 13 % at 1.5 GHz, 16.0 W |
+| RAM, menus | 368 MB (421) | 282 MB (348) | 303 MB (621) |
+| RAM, attract demo | 380 MB (417) | 387 MB (451) | 354 MB (696) |
+| RAM, gameplay (played) | 412 MB (420) | 435 MB (456) | 385 MB (790) |
 
-(The GPU ran at a higher clock for the other port in these scenes, 1.8-1.9 GHz against 1.5 GHz, so at the same
-clock its share would be even higher.)
+In menus and movies all three use the GPU only a little (3-8 %, the same ~15 W). At such low loads the reported
+GPU load jumps between runs of the same program, so I give no ranking there. About 65-75 MB of this port's RAM are
+the shaders it builds at the start from its shipped list (v1.2.0), so that effects do not stutter the first time
+they appear.
 
-These are numbers from one machine and one scene set, not a ranking - both ports are young and will change. The two
-projects also serve different players: Orta_PC_Recomp runs on DirectX 11, so it also supports older hardware, and it
-targets the USA version; this port is the PAL version and needs a GPU with Vulkan 1.3.
+**Only a benchmark, not a competition.** I measure against these projects because they are the best way to see
+what option-c brings - not to rank anyone's work. Each of them has its own strengths, and these are numbers from one
+machine and one scene set; all three projects are young and will change. They also serve different players:
+Orta_PC_Recomp runs on DirectX 11, so it also supports older hardware; ortarecomp brings its own extras (frame
+interpolation, Lossless Scaling frame generation, the original Panzer Dragoon from Pandora's Box) and runs on Linux and
+the Steam Deck too. Both target the USA version; this port is the PAL version and needs a GPU with Vulkan 1.3.
 
 ---
 
@@ -274,8 +283,8 @@ delete the `bind.` lines from `saves\settings.ini`.
 
 ## Known issues
 
-- A short smear (under a second) in episode 2 when the big worm first appears - planned for the next release.
-- 120 fps comes later (the game logic runs at its original 60).
+- A short smear (under a second) in episode 2 when the big worm first appears.
+- Loading a level can show one longer frame (about 0.2 s) - the loading itself, not a shader.
 - The Sega Saturn *Panzer Dragoon* in Pandora's Box is not part of this port (selecting it shows a message).
 - The game has no custom soundtracks.
 - The exe is not signed (see *Windows warning* above).
@@ -296,8 +305,9 @@ delete the `bind.` lines from `saves\settings.ini`.
 - **v1.1.1:** POST PROCESSING in RECOMP OPTIONS; MSAA on the whole 3D scene; bloom with an adjustable strength; Linux also as
   `.tar.gz`.
 - **v1.1.2:** menu text at 16:10 / 21:9 back in place; MENU BUTTONS in CONTROLS (A / B fixed in menus).
-- **Next release:** the episode-2 smear and fixes from your reports.
-- **Later:** 120 fps (the game's logic decoupled from the frame rate).
+- **v1.2.0:** far fewer shader stutters in the first session (a shipped pipeline list, shaders built in the
+  background); the first start about a third faster with less than half the memory.
+- **After v1.2.0:** maintenance - fixes from your reports.
 
 ### Non-goals
 - Online play (the game has none).

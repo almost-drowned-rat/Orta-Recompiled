@@ -22,10 +22,8 @@ set(XBOXRECOMP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../tools/xboxrecomp_orta" 
 set(RECOMP_GEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../private/orta/gen/pal" CACHE PATH
     "Directory holding the generated C (recomp_*.c, recomp_types.h, ...)")
 
-# Record every indirect-branch target at runtime (icall_targets.dump) for the
-# seeds feedback loop. Must be set before add_subdirectory (icall_feedback.c).
-# Remove once function detection has converged (hot-path store).
-add_compile_definitions(RECOMP_ICALL_FEEDBACK)
+# The indirect-call feedback (icall_targets.dump for the seeds loop) is OFF: a store per indirect call, never in a
+# release (maintainer 2026-11-16). For a development build: -DXBOXRECOMP_ICALL_FEEDBACK=ON (toolkit option).
 
 # Vulkan renderer (toolkit nv2a_vk, M2): glslang + SDL3 from tools/deps.ps1
 # (CMAKE_PREFIX_PATH). OFF = the toolkit's CPU executor path, nothing drawn.
