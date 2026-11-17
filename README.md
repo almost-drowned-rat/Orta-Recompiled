@@ -12,6 +12,8 @@ settings menu inside the game.
 
 > **AI disclosure:**  AI assistance yes (Claude Code by Anthropic).
 
+> **v1.2.1:** your disc image is never deleted any more, also when you put it into `game/` (#6).
+>
 > **v1.2.0:** far fewer shader stutters the first time an effect appears - the release ships a list of the game's
 > shader keys and builds them at the start, and what the list misses is built in the background. The first start
 > is about a third faster and needs less than half the memory. Since v1.1.2 **MENU BUTTONS** in CONTROLS keeps
@@ -128,7 +130,8 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 
 ### Installer built in
 - A small setup window asks for two things: your disc image and the folder to install into. **Go** builds the game
-  there, **Play** starts it. Your disc image is only read - it is never changed or deleted.
+  there, **Play** starts it. Your disc image is only read - it is never changed or deleted, wherever it lies
+  (since v1.2.1 also when you put it into `game\`).
 - The image is checked, extracted and verified; a wrong game or an unsupported version is refused with a clear
   message.
 - No GPU with Vulkan 1.3? The setup and the game say so at once, with an apology, instead of crashing.
@@ -144,8 +147,8 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
   AMD RX 400 and newer, Intel HD 500 / UHD 600 and newer, Intel Arc). If something is missing, the game says so at
   the start and names your GPU, its Vulkan version and what it lacks.
 - Your own copy of *Panzer Dragoon Orta* (Europe / PAL)
-- About **7 GB** of free disk space during the first start (the image and its extracted files), about **4 GB**
-  afterwards. **No internet needed:** the compiler ships inside the release zip / AppImage / `.tar.gz`.
+- About **7 GB** of free disk space for the first start (the image and its extracted files); about **4 GB** once
+  you delete the image yourself (the port never deletes it). **No internet needed:** the compiler ships inside the release zip / AppImage / `.tar.gz`.
 
 ### Supported version
 
@@ -180,7 +183,8 @@ installs in place, as before.
    of its own (everything the port writes goes into that folder, beside the AppImage).
 2. Make it executable (`chmod +x Panzer_Dragoon_Orta_Recomp-*.AppImage`, or in your file manager's properties).
 3. Put your disc image (`.iso`) or the extracted disc into a folder `game/` beside the AppImage - or start it once
-   with `--image /path/to/your.iso`.
+   with `--image /path/to/your.iso`. The image is never deleted; once the game is installed you can delete an
+   image in `game/` yourself to free about 3 GB (keep a copy of it somewhere).
 4. Start the AppImage. A progress window checks and extracts the image and builds the game (a few minutes, only
    once; clang, Python and everything else needed ship inside the AppImage, nothing is downloaded); then the game
    starts. Every later start goes straight into the game.
@@ -230,7 +234,9 @@ Panzer Dragoon Orta Recomp/
 
 ### Game → `game\`
 - One disc image (`.iso`) or the extracted disc folder. `default.xbe` must sit directly in `game\`.
-- The image is deleted only after every extracted file has been verified. On any error it stays.
+- The image is extracted, every file is verified, and the image stays where it is - the port never deletes it.
+  Once the game runs you can delete an image in `game\` yourself to free about 3 GB. (Up to v1.2.0 an image in
+  `game\` was deleted after a verified install.)
 
 ### Boot animation → `media\boot.mpg`
 - Your own intro video, played before the game starts. It cannot be skipped – keep it short. It can be switched
@@ -306,7 +312,8 @@ delete the `bind.` lines from `saves\settings.ini`.
 - **v1.1.2:** menu text at 16:10 / 21:9 back in place; MENU BUTTONS in CONTROLS (A / B fixed in menus).
 - **v1.2.0:** far fewer shader stutters in the first session (a shipped pipeline list, shaders built in the
   background); the first start about a third faster with less than half the memory.
-- **After v1.2.0:** maintenance - fixes from your reports.
+- **v1.2.1:** your disc image is never deleted, also when it lies in `game/` (#6).
+- **After v1.2.1:** maintenance - fixes from your reports.
 
 ### Non-goals
 - Online play (the game has none).
