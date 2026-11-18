@@ -2028,6 +2028,87 @@ void sub_0006A520(RECOMP_PARAMS)
     sub_0006A520_gen(ctx, base);
 }
 
+/* ── VERT+ / no black bars in gameplay (GitHub #8, maintainer 2026-11-18; option-c porting guide M5) ─────────────
+ * At a 640x480 screen the title gives the 3D a 640x448 viewport (X 0, Y 16) and paints two black 640x16 bars over
+ * the top and bottom lines (CRT overscan) - at every aspect ratio (shots runs 20261107_*_shots_a43 / a169 / a1610 /
+ * a219: 16 black rows top + bottom, none at the sides). Both go through the same test, "screen width == 640.0f
+ * (0x30A6E4) and height == 480.0 (double 0x30D6B8)":
+ *   sub_0004AF80(-1)  the 3D viewport: {0, 16, 640, 448} (or {30, 16, 610, 448} while 0x345DD0 == 1), else
+ *                     SetViewport(NULL) = the whole screen
+ *   sub_0004E440      the frame's 2D pass: the two black bars (sub_0006A0D0, colour 0xFF000000), then the viewport
+ *                     back to {0, 16, 640, 448}
+ * The double at 0x30D6B8 is read by these two only (disasm: 0x4AFBB, 0x4E536); during their calls it holds 0.0, so
+ * the test fails: no bars, the whole 640x480 for the 3D. The 640.0 has other users and stays.
+ * Always on (maintainer 2026-11-18: no RECOMP OPTIONS line, also in the in-engine cut scenes - the 16 lines were CRT
+ * overscan, not a letterbox). ORTA_VERTPLUS=0 = the original, for tests only. Proof (runs 20261118_223958 /
+ * 20261118_224319 shots8_169_stock / _vplus, same replay frames): 16 + 16 black rows -> 0 + 0, rows 40..440 equal to
+ * the original at shift 0 (mean abs diff 0.9..4.7 of 255 = rain / particles) - the same scale, more world above and
+ * below, nothing stretched (the renderer takes the projection from the viewport). */
+static int orta_vertplus(void)
+{
+    static int on = -1;
+    if (on < 0) {
+        const char *e = getenv("ORTA_VERTPLUS");
+        on = !(e && *e == '0');
+        fprintf(stderr, "[ORTA] vert+ %s\n", on ? "on (no black bars in gameplay)" : "off (ORTA_VERTPLUS=0: the original 640x448)");
+    }
+    return on;
+}
+#define ORTA_VERTPLUS_CALL(genfn)                                                                                   \
+    do {                                                                                                            \
+        if (orta_vertplus()) {                                                                                      \
+            uint32_t lo_ = GUEST32(0x30D6B8u), hi_ = GUEST32(0x30D6BCu);                                           \
+            GUEST32(0x30D6B8u) = 0; GUEST32(0x30D6BCu) = 0;                                                         \
+            genfn(ctx, base);                                                                                       \
+            GUEST32(0x30D6B8u) = lo_; GUEST32(0x30D6BCu) = hi_;                                                     \
+        } else                                                                                                      \
+            genfn(ctx, base);                                                                                       \
+    } while (0)
+extern void sub_0004AF80_gen(RECOMP_PARAMS);
+extern void sub_0004E440_gen(RECOMP_PARAMS);
+void sub_0004AF80(RECOMP_PARAMS) { ORTA_VERTPLUS_CALL(sub_0004AF80_gen); }
+void sub_0004E440(RECOMP_PARAMS) { ORTA_VERTPLUS_CALL(sub_0004E440_gen); }
+/* The scene itself: sub_0004E340 (each frame) sets the viewport of the scene render target (0x4497B0: X, Y, W, H)
+ * and gives the camera to the renderer (vtable +0x78 viewport, +0x7C angle / near / far). With sub_0004E2E0() == 0
+ * (normal play) it uses the target size [0x35A0D8] x [0x35A0DC] with Y = 12 and H - 12 - the scene's 12 empty top
+ * lines, 15 screen lines after the copy to 640x480 (run 20261118_221426_shots8_43_vplus: with the two hooks above
+ * alone the picture only grew from rows 16..463 to 14..464). Its other branch (sub_0004E2E0() == 1) uses
+ * [0x35A0E0] x [0x35A0E4] with Y = 0. Vert+: when sub_0004E2E0 says 0, it says 1 and the other branch gets the
+ * normal size for this one call, so the scene fills the target. sub_0004E2E0's only caller is sub_0004E340. */
+extern void sub_0004E2E0_gen(RECOMP_PARAMS);
+extern void sub_0004E340_gen(RECOMP_PARAMS);
+static int s_vp_in_e340;
+static uint32_t s_vp_swap, s_vp_e0, s_vp_e4;
+void sub_0004E2E0(RECOMP_PARAMS)
+{
+    sub_0004E2E0_gen(ctx, base);
+    if (s_vp_in_e340 && g_eax == 0) {
+        s_vp_e0 = GUEST32(0x35A0E0u); s_vp_e4 = GUEST32(0x35A0E4u);
+        GUEST32(0x35A0E0u) = GUEST32(0x35A0D8u); GUEST32(0x35A0E4u) = GUEST32(0x35A0DCu);
+        s_vp_swap = 1;
+        g_eax = 1;
+    }
+}
+void sub_0004E340(RECOMP_PARAMS)
+{
+    if (!orta_vertplus()) { sub_0004E340_gen(ctx, base); return; }
+    s_vp_in_e340 = 1; s_vp_swap = 0;
+    sub_0004E340_gen(ctx, base);
+    s_vp_in_e340 = 0;
+    {
+        static uint32_t last_key;
+        uint32_t key = GUEST32(0x4497B4u) ^ (GUEST32(0x4497BCu) << 8) ^ (s_vp_swap << 31) ^ (GUEST32(0x35A0DCu) << 20);
+        if (key != last_key) {
+            last_key = key;
+            fprintf(stderr, "[ORTA] vert+ scene: target %ux%u (alt %ux%u) viewport %u %u %u %u%s\n", GUEST32(0x35A0D8u),
+                    GUEST32(0x35A0DCu), s_vp_swap ? s_vp_e0 : GUEST32(0x35A0E0u), s_vp_swap ? s_vp_e4 : GUEST32(0x35A0E4u),
+                    GUEST32(0x4497B0u), GUEST32(0x4497B4u), GUEST32(0x4497B8u), GUEST32(0x4497BCu),
+                    s_vp_swap ? " (full height)" : " (the title's own other branch)");
+        }
+    }
+    if (s_vp_swap) { GUEST32(0x35A0E0u) = s_vp_e0; GUEST32(0x35A0E4u) = s_vp_e4; s_vp_swap = 0; }
+}
+
 void sub_0003D340(RECOMP_PARAMS) { ORTA_WS_FACTOR_CALL(sub_0003D340_gen); }
 void sub_0002FC50(RECOMP_PARAMS) { ORTA_WS_FACTOR_CALL(sub_0002FC50_gen); }
 void sub_000B7670(RECOMP_PARAMS) { ORTA_WS_FACTOR_CALL(sub_000B7670_gen); }

@@ -115,6 +115,9 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 - Panzer Dragoon Orta has its own 16:9 mode; ASPECT RATIO 16:9 switches the game to it - menus included.
 - 16:10 and 21:9 build on it: more of the world at the sides, the HUD (health, gauges, radar) at the screen edges,
   text lines kept whole. 21:9 takes your monitor's exact ratio (e.g. 3440x1440 or 2560x1080).
+- **No black bars in gameplay, at every aspect ratio:** the console version leaves 16 lines black at the top and
+  the bottom (hidden by the overscan of a CRT TV). Here the 3D fills the whole height instead - you see a bit more
+  of the world above and below, nothing is stretched (#8). Menus and movies keep their own layout.
 - The mouse cursor hides itself over the game window after 2 seconds without movement.
 - The game arranges some screens differently at 4:3 and 16:9 (e.g. the options background: a dense cloud layer at
   4:3, a large relief with thin clouds at 16:9) - both are the game's own layouts.
@@ -288,7 +291,6 @@ delete the `bind.` lines from `saves\settings.ini`.
 
 ## Known issues
 
-- A short smear (under a second) in episode 2 when the big worm first appears.
 - Loading a level can show one longer frame (about 0.2 s) - the loading itself, not a shader.
 - The Sega Saturn *Panzer Dragoon* in Pandora's Box is not part of this port (selecting it shows a message).
 - The game has no custom soundtracks.
@@ -313,7 +315,8 @@ delete the `bind.` lines from `saves\settings.ini`.
 - **v1.2.0:** far fewer shader stutters in the first session (a shipped pipeline list, shaders built in the
   background); the first start about a third faster with less than half the memory.
 - **v1.2.1:** your disc image is never deleted, also when it lies in `game/` (#6).
-- **After v1.2.1:** maintenance - fixes from your reports.
+- **v1.2.2:** no black bars in gameplay - the 3D fills the whole screen height at every aspect ratio (#8).
+- **After v1.2.2:** maintenance - fixes from your reports.
 
 ### Non-goals
 - Online play (the game has none).
