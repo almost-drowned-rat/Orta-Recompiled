@@ -635,9 +635,19 @@ int host_init(int argc, char **argv, HostOptions *opt)
     }
     slash = strrchr(opt->exe_dir, '\\');
     if (slash) *slash = '\0';
-    join(opt->game_dir, opt->exe_dir, "game");
-    join(opt->save_dir, opt->exe_dir, "saves");
-    join(opt->data_dir, opt->exe_dir, "data");
+    {
+        /* Release layout (maintainer 2026-11-21, option-c src/porthost/host_win32.c): the game exe lies in
+         * <root>\data, the launcher alone on top - an exe in a folder named "data" takes the folder above as its
+         * root; exe_dir stays (the .pdb). An exe elsewhere (dev builds, old installs) is its own root as before. */
+        char root[HOST_PATH_MAX];
+        char *b = strrchr(opt->exe_dir, '\\');
+        snprintf(root, sizeof root, "%s", opt->exe_dir);
+        if (b && !_stricmp(b + 1, "data"))
+            root[b - opt->exe_dir] = '\0';
+        join(opt->game_dir, root, "game");
+        join(opt->save_dir, root, "saves");
+        join(opt->data_dir, root, "data");
+    }
 
     for (i = 1; i < argc; i++) {
         const char *a = argbuf[i], *v = (i + 1 < argc) ? argbuf[i + 1] : NULL;

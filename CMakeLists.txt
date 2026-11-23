@@ -135,25 +135,29 @@ if(MINGW)
     # folder needs no extra DLLs (docs/toolkit.md, toolchain decision).
     target_link_options(${PROJECT_NAME} PRIVATE -Wl,--pdb= -Wl,--large-address-aware -static)
 endif()
-# The release launcher "Panzer Dragoon Orta Recomp.exe": the toolkit's launcher with Orta's
-# names, version and icon - no game code. Built into the build folder (not the layout); tools/release.ps1 appends
-# the payload to it. Model: THPS 2X.
+# The release launcher orta_launcher.exe: the toolkit's launcher with Orta's names, version and icon - no game code.
+# Built into the build folder (not the layout); tools/release.ps1 appends the payload to it. Model: THPS 2X.
 if(TARGET xbox_launcher)   # Windows: the release exe; Linux: usr/bin/panzer-dragoon-orta-recomp in the AppImage
-    # setup_win32.c (Windows only): the setup window in another port's launcher look (maintainer 2026-11-05) and the
-    # toolkit's progress UI (game_setup_ui.h) in the same look - its six functions replace game_setup_ui.c's at link
-    # time. Linux (maintainer 2026-11-11): launcher/setup_ui_sdl.c, the same look drawn with SDL (also Android's).
-    # src/vk_check.c: the Vulkan 1.3 check with the apology box (ORTA.exe uses the same file).
+    # From v1.3.0 (maintainer 2026-11-23: every port's launcher in the designs of option-p's launcher): Windows and
+    # Linux link the toolkit's port launcher xbox_launcher_port (launcher_port.h: Windows 95's look on Windows, Windows
+    # 2000's on Linux; it brings its own xr_setup_ui_* and the launcher's Vulkan check). Android keeps
+    # launcher/setup_ui_sdl.c and src/vk_check.c (the game's own Vulkan check, also in ORTA.exe).
     add_executable(orta_launcher launcher/main.c src/vk_check.c)
     target_include_directories(orta_launcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-    if(WIN32)
-        target_sources(orta_launcher PRIVATE launcher/setup_win32.c assets/orta.rc)
-        set_target_properties(orta_launcher PROPERTIES WIN32_EXECUTABLE ON)
-        target_link_libraries(orta_launcher PRIVATE comdlg32 shell32 ole32 gdi32 user32)
-    else()
+    if(ANDROID OR NOT TARGET xbox_launcher_port)
         target_sources(orta_launcher PRIVATE launcher/setup_ui_sdl.c)
+    else()
+        target_link_libraries(orta_launcher PRIVATE xbox_launcher_port)
     endif()
     if(WIN32)
-        set_target_properties(orta_launcher PROPERTIES OUTPUT_NAME "Panzer Dragoon Orta Recomp")
+        target_sources(orta_launcher PRIVATE assets/orta.rc)   # the exe's icon = resource 1, the window loads it
+        set_target_properties(orta_launcher PROPERTIES WIN32_EXECUTABLE ON)
+    endif()
+    # Release layout (maintainer 2026-11-21): only orta_launcher.exe on top, the game data\orta.exe (launcher/main.c
+    # game_exe; the dev build's own ORTA.exe in the install layout keeps its name). Linux: the AppImage's internal
+    # usr/bin/<slug> stays (the user-data folder follows the slug); the tar.gz's start script is orta_launcher.
+    if(WIN32)
+        set_target_properties(orta_launcher PROPERTIES OUTPUT_NAME "orta_launcher")
     else()
         set_target_properties(orta_launcher PROPERTIES OUTPUT_NAME "panzer-dragoon-orta-recomp")
     endif()

@@ -158,7 +158,9 @@ void orta_vk_message(char *out, size_t n, const char *found)
              "I am sorry - Panzer Dragoon Orta Recomp unfortunately only supports devices whose graphics driver has "
              "at least Vulkan 1.3, and this device does not have it.\n\n"
              "Found: %s\n\n"
-             "A system update sometimes adds Vulkan 1.3. If the device is too old, the game cannot run on it.",
+             "On an Adreno GPU (Snapdragon) a Turnip driver adds Vulkan 1.3: BACK > Graphics driver, for example "
+             "purple-turnip from github.com/MrPurple666/purple-turnip/releases. Otherwise a system update sometimes "
+             "adds it; if the device is too old, the game cannot run on it.",
              found && *found ? found : "nothing");
     return;
 #endif

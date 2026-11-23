@@ -119,17 +119,18 @@ function = [
 # 20261103_214459_B_prof1, attract demo ~155 s) had the main thread 97 % busy, 331 of 400 samples in KickOff.
 # recomp_spin_wake() (the runtime's flush acknowledge) right before the test ends the spin at once. The hook sits
 # at the loop head (the test instruction itself); no flag is live there (the test sets them).
+# Since option-c 0b1d0f5 every hook gets the register context (RECOMP_PARAMS): recomp_spin_wake_hook is the hook form.
 [[hook]]
 at = 0x002AFD50
-call = "recomp_spin_wake"
+call = "recomp_spin_wake_hook"
 
 [[hook]]
 at = 0x002AFDD0
-call = "recomp_spin_wake"
+call = "recomp_spin_wake_hook"
 
 [[hook]]
 at = 0x002AFEB0
-call = "recomp_spin_wake"
+call = "recomp_spin_wake_hook"
 
 # Movie-start race forcing test (2026-11-04): in the Sofdec decoder sub_002F9620, right after the call
 # to sub_0023E2A0 returns and before "call [[esi]+0x20]" at 0x2F9CC5 (the crash site of

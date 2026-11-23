@@ -100,16 +100,18 @@ back to its default** - only that line. Every change is kept when you leave the 
 ### RECOMP OPTIONS
 Changes are saved immediately. Settings that need a restart are marked, and leaving the menu asks **RESTART NEEDED**.
 
-| Setting | Values |
+| Page | Settings |
 |---|---|
-| **Post processing** | The picture settings, all applied at once: **brightness and contrast** (the game's own, now visible on the PC screen), **antialiasing** (off, FXAA (default), SMAA, MSAA 2x, MSAA 4x - MSAA smooths the whole 3D scene), **anisotropic filter** (off up to 16x) and **bloom** (off by default; a glow around bright light, not on the console) with a **bloom strength** from 1 to 10 |
-| **Display mode** | Borderless (default), Fullscreen (exclusive), Windowed – window size and position are remembered |
-| **Render resolution** | From the original 480 lines up to 5x (e.g. 1080p, 1440p, 4K) – independent of the window size |
-| **Aspect ratio** | 4:3, 16:9, 16:10 or 21:9 – 16:9 is the game's own widescreen mode; 16:10 and 21:9 widen the view further, the HUD moves to the screen edges; never stretched |
-| **Field of view** | Original, or wider by +5 up to +30 |
-| **Frame rate** | V-Sync, **frame pacing** (DISPLAY = in step with your monitor, TIMER = a steady 60 Hz timer) and an FPS counter (FPS, frame time or both); the game runs at its original 60 fps |
-| **Boot animation** | Plays your own intro video before the game, for example the original Xbox boot animation ;) |
+| **Post processing** | The picture settings, all applied at once: **brightness and contrast** (the game's own, now visible on the PC screen), **antialiasing** (off, FXAA (default), SMAA, MSAA 2x, MSAA 4x - MSAA smooths the whole 3D scene), **anisotropic filter** (off up to 16x), **bloom** (off by default; a glow around bright light, not on the console) with a **bloom strength** from 1 to 10, and **upscaling**: bilinear (default) or **AMD FSR 1.0** - with FSR two more lines appear, the **preset** (quality, balanced, performance: the internal resolution) and the **sharpness** (low to max) |
+| **Display** | **Display mode** (borderless (default), fullscreen (exclusive), windowed – window size and position are remembered), **render resolution** (from the original 480 lines up to 5x, e.g. 1080p, 1440p, 4K – independent of the window size; set by the FSR preset while FSR is on), **aspect ratio** (4:3, 16:9, 16:10 or 21:9 – 16:9 is the game's own widescreen mode; 16:10 and 21:9 widen the view further, the HUD moves to the screen edges; never stretched) and **field of view** (original, or wider by +5 up to +30) |
+| **Performance** | **V-Sync**, and three on-screen counters, each on or off: **FPS**, **frame time** (the longest frame of the last half second) and **game speed** (100 % = as fast as the console; it drops when the game stalls). The game runs at its original 60 fps |
+| **Rendering** | **Shader compile**: HYBRID (default - a quick stand-in shader draws until the real one is built, so nothing is left out and nothing waits), WAIT, SKIP or OFF; **shader notice** (a small "building shaders" note in the corner, on by default) |
 | **Language** | System (follows Windows), English, German, French, Spanish, Italian, Japanese (the European disc carries the complete Japanese text) |
+| **Boot animation** | Plays your own intro video before the game, for example the original Xbox boot animation ;) |
+
+**F12** saves a screenshot into `screenshots\`. Frame pacing is no menu line any more: the port picks the best mode
+for your display by itself; `frame_pacing=` in `saves\settings.ini` can still force one (`display+paced`,
+`timer+paced`, ...).
 
 ### Widescreen (16:9, 16:10, 21:9)
 - Panzer Dragoon Orta has its own 16:9 mode; ASPECT RATIO 16:9 switches the game to it - menus included.
@@ -132,9 +134,10 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 - **Nothing is written outside it:** no registry, no AppData, no shortcuts, no temp files left behind.
 
 ### Installer built in
-- A small setup window asks for two things: your disc image and the folder to install into. **Go** builds the game
-  there, **Play** starts it. Your disc image is only read - it is never changed or deleted, wherever it lies
-  (since v1.2.1 also when you put it into `game\`).
+- A small setup window (Windows 95's look on Windows, Windows 2000's on Linux) asks for two things: your disc image
+  and the folder to install into. **Go** builds the game there, the progress in the same window, and then starts it.
+  Quitting during the installation asks first and stops cleanly. Your disc image is only read - it is never changed
+  or deleted, wherever it lies (since v1.2.1 also when you put it into `game\`).
 - The image is checked, extracted and verified; a wrong game or an unsupported version is refused with a clear
   message.
 - No GPU with Vulkan 1.3? The setup and the game say so at once, with an apology, instead of crashing.
@@ -165,17 +168,17 @@ version(s): Europe. Please provide a supported version."*
 ### First start (Windows)
 1. Download `Orta-Recompiled-v<version>-win64.zip` (about 95 MB, the compiler included) from the release page and
    unpack it (keep the `tools\` folder next to the exe).
-2. Start `Panzer Dragoon Orta Recomp.exe`. The setup window asks for your disc image (`.iso`, XISO or full redump
-   image) and the folder to install into (it suggests one). Press **Go**.
-3. The setup copies itself into that folder (with the folders below, each with a short `README.txt`) and sets
-   everything up there, the progress in the same window:
+2. Start `orta_launcher.exe`. The setup window asks for your disc image (`.iso`, XISO or full redump
+   image) and the folder to install into (**Install to:**, the launcher's own folder by default). Press **Go**.
+3. For another folder the launcher copies itself there (with the compiler zip and a short `media\README.txt`) and
+   continues there; it then sets everything up, the progress in the window:
    - the image is checked, extracted and verified,
    - the compiler ([llvm-mingw](https://github.com/mstorsjo/llvm-mingw), a fixed release, pruned to what the game
      needs, in the zip's `tools\`) is used from there - nothing is downloaded,
    - the game's code is translated and compiled on your PC (a few minutes, only once - about 4 on a 6-core
      laptop).
-4. Press **Play**. Later, start `Panzer Dragoon Orta Recomp.exe` in the install folder - it goes straight into the
-   game.
+4. Then the game starts. Later, start `orta_launcher.exe` in the install folder - it goes straight into the game
+   (the game itself is `data\orta.exe`).
 5. Optional: add a boot video (see next section).
 
 Already have an extracted disc? Put the files (or one image) into `game\` next to the exe and start it there - it
@@ -185,12 +188,13 @@ installs in place, as before.
 1. Download `Panzer_Dragoon_Orta_Recomp-<version>-x86_64.AppImage` from the release page and put it into a folder
    of its own (everything the port writes goes into that folder, beside the AppImage).
 2. Make it executable (`chmod +x Panzer_Dragoon_Orta_Recomp-*.AppImage`, or in your file manager's properties).
-3. Put your disc image (`.iso`) or the extracted disc into a folder `game/` beside the AppImage - or start it once
-   with `--image /path/to/your.iso`. The image is never deleted; once the game is installed you can delete an
+3. Start the AppImage. The setup window asks for your disc image and the folder to install into (the AppImage's
+   own folder by default; another folder gets a copy of the AppImage). Press **Go**. (Or put the disc image /
+   the extracted disc into `game/` beside the AppImage, or start it with `--image /path/to/your.iso`.)
+4. The window checks and extracts the image and builds the game (a few minutes, only once; clang, Python and
+   everything else needed ship inside the AppImage, nothing is downloaded); then the game starts. Every later
+   start goes straight into the game. The image is never deleted; once the game is installed you can delete an
    image in `game/` yourself to free about 3 GB (keep a copy of it somewhere).
-4. Start the AppImage. A progress window checks and extracts the image and builds the game (a few minutes, only
-   once; clang, Python and everything else needed ship inside the AppImage, nothing is downloaded); then the game
-   starts. Every later start goes straight into the game.
 5. If it does not start because FUSE is missing, run it with `--appimage-extract-and-run` as the first argument.
 
 The folders beside the AppImage are the same as on Windows (`game/`, `media/`, `saves/`, `data/`); nothing is
@@ -201,7 +205,7 @@ The same program also comes as `Panzer_Dragoon_Orta_Recomp-<version>-x86_64.tar.
 unpacked, for systems without FUSE or if you prefer plain folders.
 1. Unpack it anywhere (`tar -xzf Panzer_Dragoon_Orta_Recomp-*.tar.gz`); it makes one folder
    `Panzer_Dragoon_Orta_Recomp-<version>-x86_64/`.
-2. Start `./panzer-dragoon-orta-recomp` in that folder (terminal or double-click); with `--image /path/to/your.iso`
+2. Start `./orta_launcher` in that folder (terminal or double-click); with `--image /path/to/your.iso`
    or with your disc image in `game/` inside that folder. The first start builds the game as above.
 
 Everything the port writes (`game/`, `media/`, `saves/`, `data/`) goes into that folder, next to the start script;
@@ -209,9 +213,11 @@ Everything the port writes (`game/`, `media/`, `saves/`, `data/`) goes into that
 `app/usr/share/panzer-dragoon-orta-recomp/tools/licenses/`.
 
 ### Updating from an earlier version
-Unpack the new zip over the old folder. The game is built once more at the next start (a few minutes); your
-`saves\` and `media\` stay. **Linux:** replace the AppImage in its folder - or unpack the new `.tar.gz` and move
-your `game/`, `media/` and `saves/` into the new folder; they stay as they are.
+Unpack the new zip over the old folder and start `orta_launcher.exe`. The game is built once more at the next
+start (a few minutes); your `saves\` and `media\` stay. **From v1.2.x to v1.3.0:** the start file is now
+`orta_launcher.exe` and the game lives in `data\` - the old `Panzer Dragoon Orta Recomp.exe` is removed by the new
+launcher. **Linux:** replace the AppImage in its folder (the old `ORTA` beside it is removed at the first start) -
+or unpack the new `.tar.gz` and move your `game/`, `media/` and `saves/` into the new folder; they stay as they are.
 
 > **Windows warning:** the exe is not signed. **SmartScreen** shows "Windows protected your PC" – click
 > **More info → Run anyway**. **Smart App Control** (Windows 11) blocks unsigned apps completely; the port can only
@@ -223,15 +229,17 @@ your `game/`, `media/` and `saves/` into the new folder; they stay as they are.
 
 ```
 Panzer Dragoon Orta Recomp/
-├── Panzer Dragoon Orta Recomp.exe   start this (sets everything up on the first start, then starts the game)
-├── ORTA.exe                         the port – built on your PC on the first start
+├── orta_launcher.exe                start this (sets everything up on the first start, then starts the game)
 ├── game/                            YOUR GAME: put the disc image or extracted files here
 ├── media/                           YOUR MEDIA (read only – the port never changes it)
 │   └── boot.mpg                     optional boot animation
 ├── saves/                           your saves and settings – never deleted
 │   ├── UDATA/4947002B/              the game's saves
 │   └── settings.ini                 all port settings
-├── data/                            caches and logs – safe to delete at any time
+├── data/                            the game, caches and logs
+│   ├── orta.exe                     the port – built on your PC on the first start
+│   └── xbox_apu.dll                 the audio emulation (LGPL, replaceable - see Licence)
+├── screenshots/                     F12 screenshots
 └── tools/                           translator, compiler and licences (used on the first start and for a repair)
 ```
 
@@ -284,7 +292,7 @@ delete the `bind.` lines from `saves\settings.ini`.
   `data\launcher.log`. Please attach `data\orta.log` to a bug report.
 - **Frame rate or stutter reports:** start with the environment variable `RECOMP_FRAME_TIME=1` and attach
   `data\frametime.csv` too.
-- **Repair:** `"Panzer Dragoon Orta Recomp.exe" --repair` unpacks, translates and compiles everything again;
+- **Repair:** `orta_launcher.exe --repair` unpacks, translates and compiles everything again;
   `saves\` and `media\` are never touched.
 
 ---
@@ -316,7 +324,10 @@ delete the `bind.` lines from `saves\settings.ini`.
   background); the first start about a third faster with less than half the memory.
 - **v1.2.1:** your disc image is never deleted, also when it lies in `game/` (#6).
 - **v1.2.2:** no black bars in gameplay - the 3D fills the whole screen height at every aspect ratio (#8).
-- **After v1.2.2:** maintenance - fixes from your reports.
+- **v1.3.0:** the options reorganised into pages (POST PROCESSING, DISPLAY, PERFORMANCE, RENDERING); upscaling
+  with AMD FSR 1.0; a game-speed counter; shaders drawn with a stand-in while they build (HYBRID); frame pacing
+  chosen automatically; F12 screenshots; only `orta_launcher.exe` on top, the game in `data\`.
+- **After v1.3.0:** maintenance - fixes from your reports.
 
 ### Non-goals
 - Online play (the game has none).
@@ -367,6 +378,7 @@ trademarks belong to their respective owners.
 | [comoria08/defjam_recomp](https://github.com/comoria08/defjam_recomp) | lift pipeline and seeds workflow | MIT |
 | takedawn-xboxrecomp | XDVDFS disc reader | MIT |
 | [iryoku/smaa](https://github.com/iryoku/smaa) | SMAA antialiasing | MIT |
+| [AMD FidelityFX FSR 1.0](https://github.com/GPUOpen-Effects/FidelityFX-FSR) | FSR upscaling | MIT |
 | [miniz](https://github.com/richgel999/miniz) | unpacking the compiler | MIT |
 | [phoboslab/pl_mpeg](https://github.com/phoboslab/pl_mpeg) | boot animation (MPEG-1 video, MP2 audio) | MIT |
 | [SDL3](https://github.com/libsdl-org/SDL), [glslang](https://github.com/KhronosGroup/glslang) | window, input, audio; shader compiler | zlib; BSD/MIT |
@@ -381,3 +393,8 @@ Full licence texts and attributions: the toolkit's `NOTICE` and `LICENSES/`, and
 ## Licence
 
 GPL-3.0-or-later – see [LICENSE](LICENSE). Third-party code keeps its own licence.
+
+The game's sound runs on the emulated audio chip (xemu's MCPX APU core, LGPL-2.1-or-later). From v1.3.0 it is a
+separate, replaceable library beside the game (`data\xbox_apu.dll`, Linux `data/libxbox_apu.so`); its complete
+source with my changes and how to rebuild it come with every release (the `LGPL-source-and-notices` zip on the
+release page, and `tools\licenses\source\` after the setup).

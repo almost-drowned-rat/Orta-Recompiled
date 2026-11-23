@@ -16,7 +16,10 @@ param(
     [switch]$Clean,
     [int]$Jobs = 2,
     [string]$Layout,
-    [string]$Gen = ""   # other gen dir (lift.ps1 -Gen); it gets its own build dir build\<repo>_<gen leaf>
+    [string]$Gen = "",  # other gen dir (lift.ps1 -Gen); it gets its own build dir build\<repo>_<gen leaf>
+    # the build a release is made from (tools\release.ps1 checks it): the toolkit's F9 debug menu compiled out
+    # (option-c's porting guide, release steps: -DXR_DEBUG_PANEL=OFF); dev builds keep it (ON)
+    [switch]$ForRelease
 )
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "paths.ps1")           # $Repo, $Private, $ToolsRoot, $Shared
@@ -53,7 +56,8 @@ try {
         "-DCMAKE_RC_COMPILER=$(Cm (Join-Path $bin 'llvm-rc.exe'))" `
         "-DORTA_OUTPUT_DIR=$(Cm $Layout)" `
         "-DXBOXRECOMP_DIR=$(Cm $Toolkit)" `
-        "-DRECOMP_GEN_DIR=$(Cm $Gen)" | Out-Null
+        "-DRECOMP_GEN_DIR=$(Cm $Gen)" `
+        "-DXR_DEBUG_PANEL=$(if ($ForRelease) { 'OFF' } else { 'ON' })" | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
     $t = [Diagnostics.Stopwatch]::StartNew()
     & cmake --build $Build --parallel $Jobs

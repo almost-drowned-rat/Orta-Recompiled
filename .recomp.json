@@ -1,0 +1,15 @@
+{
+  "$schema": "https://recomp.fyi/schema/v1.json",
+  "game": "Panzer Dragoon Orta",
+  "wikidata": "Q335056",
+  "system": "Xbox",
+  "type": "recomp",
+  "original": [
+    { "region": "Europe" }
+  ],
+  "project": "Orta Recompiled",
+  "status": "released",
+  "targets": ["Windows", "Linux"],
+  "toolchain": "xboxrecomp-option-c",
+  "approach": "Static recompilation of the player's own disc on the first start, Vulkan renderer"
+}

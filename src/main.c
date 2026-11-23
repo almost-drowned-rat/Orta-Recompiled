@@ -122,11 +122,15 @@ int main(int argc, char **argv)
      * saved value becomes its default here (an explicit RECOMP_VSYNC still wins); a change needs a restart. */
     if (!strcmp(settings_get("vsync", "on"), "off"))
         host_setenv_default("RECOMP_VSYNC", "0");
-    /* RECOMP OPTIONS > FRAME RATE > FRAME PACING (frame_pacing=display|timer; port guideline 2026-11-05, THPS 2X
-     * v1.1.0): DISPLAY (default) = the guest vblank follows a 120 / 180 / 240 Hz display's own vblank (toolkit
-     * host_vblank); 60 HZ TIMER = the old clock. Read once by the kernel at start. */
-    if (!strcmp(settings_get("frame_pacing", "display"), "timer"))
-        host_setenv_default("RECOMP_FRAME_PACING", "timer");
+    /* FRAME PACING (settings file only since 2026-11-23 - option-c docs/recomp_options_layout.md): frame_pacing =
+     * timer+paced / timer+immediate / display+paced / display+immediate / auto, old display / timer still read by
+     * the toolkit; handed over as is, read once by the kernel at start. Unset = the toolkit's auto - no default is
+     * written into the file. */
+    {
+        const char *fp = settings_get("frame_pacing", NULL);
+        if (fp && *fp)
+            host_setenv_default("RECOMP_FRAME_PACING", fp);
+    }
     /* FRAME RATE 120 (night order 2026-11-07): the guest vblank at 120 Hz (toolkit RECOMP_GUEST_HZ); the game's
      * frame time step goes to 1/120 in orta_options_apply. ORTA_FPS=120 / 60 forces it for one run. */
     {

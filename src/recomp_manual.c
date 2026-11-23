@@ -749,9 +749,10 @@ void sub_002378B0(RECOMP_PARAMS)
 /* Forcing hook for the movie-start race ([[hook]] at 0x2F9CBB in config\variants\pal.toml): sleeps
  * ORTA_RACE_SOFDEC_MS before the decoder's virtual call on 0x4BE4A0, so a destroy on the main thread can land in
  * between. Off unless the variable is set; logged once. */
-void orta_race_sofdec_delay(void)
+void orta_race_sofdec_delay(RECOMP_PARAMS)   /* hook form since option-c 0b1d0f5: the register context, unused */
 {
     static int ms = -1;
+    (void)ctx; (void)base;
     if (ms < 0) {
         const char *e = getenv("ORTA_RACE_SOFDEC_MS");
         ms = e ? atoi(e) : 0;
@@ -900,8 +901,9 @@ static int opt_relabel(const uint32_t *from, uint32_t n_from, const char *to)
  * instances - which copy their position once (run 20261104_043102_opt_compact: shifted values stayed put). So
  * text and positions are changed while nothing has been instantiated yet. The flags are dead there (the next
  * instruction loads eax and compares). */
-void orta_opt_after_load(void)
+void orta_opt_after_load(RECOMP_PARAMS)      /* hook form since option-c 0b1d0f5: the register context, unused */
 {
+    (void)ctx; (void)base;
     static const uint32_t auf_ab[6] = { 'A' + 0x6A, 'U' + 0x6A, 'F' + 0x6A, 0x86, 'A' + 0x6A, 'B' + 0x6A };
     const char *e = getenv("ORTA_OPT_LABELS");
     if (e && *e == '0') return;
@@ -1089,8 +1091,10 @@ static int opt_clone_label(uint32_t tmpl_id, uint32_t new_id, const char *text, 
  * selected, plain row records) with a port-owned glyph buffer; the stock values are restored for lines without a
  * view text. All state is rebuilt on every open (orta_opt_after_load), the records are reloaded then. */
 /* Views from OPT_V_RECOMP on are the port's own: their lines come from k_pl (value lines, sub-lists, picks). */
+/* option-c November batch (2026-11-23, docs/recomp_options_layout.md): OPT_V_FPS is the PERFORMANCE page (was
+ * FRAME RATE), OPT_V_VIEW the DISPLAY page (was ASPECT RATIO AND FOV), OPT_V_RENDERING the new RENDERING page. */
 enum { OPT_V_TOP, OPT_V_CONTROLS, OPT_V_SOUND, OPT_V_RECOMP, OPT_V_AA, OPT_V_FPS, OPT_V_BOOT, OPT_V_BIND,
-       OPT_V_RESTART, OPT_V_PIC, OPT_V_VIEW, OPT_V_N };
+       OPT_V_RESTART, OPT_V_PIC, OPT_V_VIEW, OPT_V_RENDERING, OPT_V_N };
 static const signed char k_opt_rows[OPT_V_N][9] = {
     /* line:   0   1   2   3   4   5   6   7   8 */
     /* TOP: PRACTICE (line 0, its AIMING value parked; maintainer 2026-11-04 late: ÜBUNG moves here as the first line),
@@ -1098,25 +1102,30 @@ static const signed char k_opt_rows[OPT_V_N][9] = {
     {          0, -1,  3, -1, -1, -1,  1,  2,  4 },
     {          0,  1,  2, -1, -1, -1,  3, -1, -1 },   /* CONTROLS: AIMING, VIBRATION, BUTTON MAPPING, MENU BUTTONS (6) */
     {         -1, -1, -1,  0,  1,  2,  3, -1, -1 },   /* SOUND: BGM / SE / STIMMEN, SPEAKERS (line 6, port value) */
-#ifdef __ANDROID__
-    /* Android: no DISPLAY MODE (the app is always full screen, the line has no function there) - line 1 hidden,
-     * the others move up a row */
-    {          0, -1,  1,  2, -1, -1,  3,  4,  5 },   /* RECOMP OPTIONS without DISPLAY MODE */
-#else
-    /* RECOMP OPTIONS, value sprites parked; lines 4 / 5 (were ANISOTROPIC FILTER, ANTIALIASING >) hidden since
-     * 2026-11-12: both are in POST PROCESSING now */
-    {          0,  1,  2,  3, -1, -1,  4,  5,  6 },
-#endif
+    /* RECOMP OPTIONS, value sprites parked (2026-11-23): POST PROCESSING >, DISPLAY >, PERFORMANCE >, RENDERING >,
+     * LANGUAGE, BOOT ANIMATION > (always last); lines 4 / 5 / 6 hidden. Android too: DISPLAY MODE is hidden inside
+     * the DISPLAY page there. */
+    {          0,  1,  2,  3, -1, -1, -1,  4,  5 },
     {         -1, -1, -1, -1, -1, -1, -1, -1, -1 },   /* (unused since 2026-11-12: ANTIALIASING is in POST PROCESSING) */
-    {          0,  1,  2,  3, -1, -1, -1, -1, -1 },   /* RECOMP > FRAME RATE: FRAME RATE, FRAME PACING, VSYNC, FPS COUNTER */
+    {          0,  1,  2,  3, -1, -1, -1, -1, -1 },   /* RECOMP > PERFORMANCE: V-SYNC, FPS, FRAME TIME, GAME SPEED */
     {          0,  1, -1, -1, -1, -1, -1, -1, -1 },   /* RECOMP > BOOT ANIMATION: status, ON / OFF */
     {          0,  1,  2,  3,  4,  5,  6,  7,  8 },   /* CONTROLS > BUTTON MAPPING: DEVICE, RESET, 6 bindings, NEXT */
     {          0,  1,  2, -1, -1, -1, -1, -1, -1 },   /* RESTART NEEDED: the line, RESTART NOW, LATER */
-    {          0,  1,  2,  3,  4,  5, -1, -1, -1 },   /* RECOMP > POST PROCESSING: the game's two values, AA, AF, BLOOM x2 */
-    {          0,  1, -1, -1, -1, -1, -1, -1, -1 },   /* RECOMP > ASPECT RATIO AND FOV: ASPECT RATIO, FIELD OF VIEW */
+    /* RECOMP > POST PROCESSING: the game's two values, AA, AF, BLOOM x2, UPSCALING + FSR PRESET / FSR SHARPNESS
+     * (lines 7 / 8 only while UPSCALING is FSR - opt_row) */
+    {          0,  1,  2,  3,  4,  5,  6,  7,  8 },
+    /* RECOMP > DISPLAY: DISPLAY MODE, RENDER RESOLUTION, ASPECT RATIO, FIELD OF VIEW. No STRETCH CUTSCENES
+     * (maintainer 2026-11-23: not relevant for Orta - its movies already fill 16:9, runs 20261123_173402 /
+     * _173605_movie169) */
+#ifdef __ANDROID__
+    {         -1,  0,  1,  2, -1, -1, -1, -1, -1 },   /* without DISPLAY MODE (always full screen) */
+#else
+    {          0,  1,  2,  3, -1, -1, -1, -1, -1 },
+#endif
+    {          0,  1, -1, -1, -1, -1, -1, -1, -1 },   /* RECOMP > RENDERING: SHADER COMPILE, SHADER NOTICE */
 };
 /* views whose lines show their stock value sprites (others park them, "NAME: VALUE" is in the text) */
-static const unsigned char k_opt_values[OPT_V_N] = { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
+static const unsigned char k_opt_values[OPT_V_N] = { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static const char *const k_opt_text[OPT_V_N][9] = {
     { "PRACTICE", 0, "CONTROLS", 0, 0, 0, 0, "SOUND", "RECOMP OPTIONS" },
     { "AIMING", 0, "BUTTON MAPPING", 0, 0, 0, 0, 0, 0 },
@@ -1151,13 +1160,24 @@ void nv2a_vk_set_display_mode(int mode);
 void nv2a_vk_set_antialiasing(int mode);
 enum { ORTA_VK_DISPLAY_WINDOWED, ORTA_VK_DISPLAY_BORDERLESS, ORTA_VK_DISPLAY_FULLSCREEN };  /* = NV2A_VK_DISPLAY_* */
 
-void nv2a_vk_set_fps_hud(int mode);
 int  nv2a_vk_antialiasing_fits(int mode);
 void nv2a_vk_set_bloom(int strength);      /* toolkit: 0 = off, 1 .. NV2A_VK_BLOOM_MAX (10) */
+/* option-c November 2026 (docs/recomp_options_layout.md: SHADER COMPILE, PERFORMANCE overlay, UPSCALING, shader
+ * notice; no stretch - see OPT_V_VIEW) */
+void nv2a_vk_set_perf_overlay(int mask);   /* NV2A_VK_PERF_FPS 1 / _FRAMETIME 2 / _SPEED 4 */
+int  nv2a_vk_perf_overlay_parse(const char *s);
+void nv2a_vk_set_upscaling(int fsr, int preset, int sharpness);
+void nv2a_vk_set_async_mode(int mode);     /* NV2A_VK_ASYNC_OFF 0 / SKIP 1 / WAIT 2 / HYBRID 3 */
+int  nv2a_vk_get_async_mode(void);
+void nv2a_vk_set_shader_notice(int on);
 
 typedef struct { const char *label, *key, *def; const char *val[12], *txt[12]; int n; } opt_val_t;
-enum { RV_DISPLAY, RV_RENDER, RV_ASPECT, RV_ANISO, RV_LANGUAGE, RV_AA, RV_FRAMERATE, RV_VSYNC, RV_FPSHUD, RV_BOOT,
-       RV_PACING, RV_FOV, RV_SPEAKERS, RV_BLOOM, RV_BLOOMSTR, RV_MENUBTN, RV_N };
+/* RV_FRAMERATE has no menu line since 2026-11-23 (Orta offers only ORIGINAL; ORTA_FPS=120 for tests); FRAME PACING
+ * left the menu (settings file frame_pacing only, main.c), FPS COUNTER became the three PERFORMANCE switches. */
+enum { RV_DISPLAY, RV_RENDER, RV_ASPECT, RV_ANISO, RV_LANGUAGE, RV_AA, RV_FRAMERATE, RV_VSYNC, RV_BOOT,
+       RV_FOV, RV_SPEAKERS, RV_BLOOM, RV_BLOOMSTR, RV_MENUBTN,
+       RV_PERF_FPS, RV_PERF_FT, RV_PERF_SPEED, RV_UPSCALE, RV_FSRPRESET, RV_FSRSHARP, RV_SHADERS,
+       RV_SHNOTICE, RV_N };
 static const opt_val_t k_rv[RV_N] = {
     /* index = NV2A_VK_AA_*; applied at once if the device can (nv2a_vk_antialiasing_fits), else refused */
     [RV_AA]       = { "ANTIALIASING", "antialiasing", "fxaa", { "off", "fxaa", "smaa", "msaa2", "msaa4" },
@@ -1170,15 +1190,24 @@ static const opt_val_t k_rv[RV_N] = {
      * the speed (game frame 1200 = the same scene, after 10 s instead of 20 s). docs/fps120_study.md lists the
      * per-frame steps to halve. ORTA_FPS=120 still forces it for tests. */
     [RV_FRAMERATE] = { "FRAME RATE", "frame_rate", "original", { "original", "120" }, { "ORIGINAL 60", "120" }, 1 },
-    [RV_VSYNC]    = { "VSYNC", "vsync", "on", { "on", "off" }, { "ON", "OFF" }, 2 },      /* main.c, at start */
-    /* FRAME PACING (port guideline, maintainer 2026-11-05; THPS 2X v1.1.0): DISPLAY = on a 120 / 180 / 240 Hz display
-     * the guest vblank follows the display's own vblank (toolkit host_vblank, option-c night 2026-11-07), 60 HZ
-     * TIMER = the old clock. main.c -> RECOMP_FRAME_PACING, at start. */
-    [RV_PACING]   = { "FRAME PACING", "frame_pacing", "display", { "display", "timer" }, { "DISPLAY", "TIMER" }, 2 },
-    /* "TIMER", not THPS's "60 HZ TIMER": "FRAME PACING: 60 HZ TIMER - RESTART" ran off the screen when selected
-     * (run 20261107_213826_pacing_menu shot 02); the help line names the 60 Hz timer */
-    [RV_FPSHUD]   = { "FPS COUNTER", "fps_counter", "off", { "off", "fps", "fps_frametime", "frametime" },
-                      { "OFF", "FPS", "FPS AND FRAME TIME", "FRAME TIME" }, 4 },        /* = NV2A_VK_HUD_* */
+    [RV_VSYNC]    = { "V-SYNC", "vsync", "on", { "on", "off" }, { "ON", "OFF" }, 2 },     /* main.c, at start */
+    /* PERFORMANCE (2026-11-22 layout): three switches stored together as performance_overlay (perf_* below; key
+     * NULL = not a plain key). Unset: the old fps_counter mapped (fps, fps_frametime, frametime). */
+    [RV_PERF_FPS]   = { "FPS", NULL, "off", { "off", "on" }, { "OFF", "ON" }, 2 },
+    [RV_PERF_FT]    = { "FRAME TIME", NULL, "off", { "off", "on" }, { "OFF", "ON" }, 2 },
+    [RV_PERF_SPEED] = { "GAME SPEED", NULL, "off", { "off", "on" }, { "OFF", "ON" }, 2 },
+    /* UPSCALING (POST PROCESSING, layout 2026-11-21): BILINEAR as before or AMD FSR 1.0; FSR PRESET / SHARPNESS
+     * show only with FSR and list all values side by side (rv_text), at once (nv2a_vk_set_upscaling) */
+    [RV_UPSCALE]  = { "UPSCALING", "upscaling", "bilinear", { "bilinear", "fsr" }, { "BILINEAR", "FSR" }, 2 },
+    [RV_FSRPRESET] = { "FSR PRESET", "fsr_preset", "quality", { "quality", "balanced", "performance" },
+                       { "QUALITY", "BALANCED", "PERFORMANCE" }, 3 },              /* = NV2A_VK_FSR_* */
+    [RV_FSRSHARP] = { "FSR SHARPNESS", "fsr_sharpness", "high", { "low", "medium", "high", "max" },
+                      { "LOW", "MEDIUM", "HIGH", "MAX" }, 4 },                    /* = NV2A_VK_FSR_SHARP_* */
+    /* SHADER COMPILE (RENDERING page): index = NV2A_VK_ASYNC_*; the default is the toolkit's (HYBRID on Windows /
+     * Linux, WAIT on Android) - nothing is stored until the player picks a value, Y removes it again */
+    [RV_SHADERS]  = { "SHADER COMPILE", "shader_compile", NULL, { "off", "skip", "wait", "hybrid" },
+                      { "OFF", "SKIP", "WAIT", "HYBRID" }, 4 },
+    [RV_SHNOTICE] = { "SHADER NOTICE", "shader_notice", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
     [RV_BOOT]     = { "BOOT ANIMATION", "boot_animation", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
     [RV_DISPLAY]  = { "DISPLAY MODE", "display_mode", "borderless", { "fullscreen", "borderless", "windowed" },
                       { "FULLSCREEN", "BORDERLESS", "WINDOWED" }, 3 },
@@ -1219,20 +1248,22 @@ static const opt_pl_t k_pl[OPT_V_N][9] = {
     /* order: maintainer 2026-11-05 - BRIGHTNESS AND CONTRAST first, BOOT ANIMATION last (k_recomp help in the same order) */
     /* POST PROCESSING > (maintainer 2026-11-12, the group's name too): BRIGHTNESS AND CONTRAST grew into the picture
      * group - ANTIALIASING and ANISOTROPIC FILTER moved in, BLOOM joined; lines 4 / 5 are hidden (k_opt_rows) */
-    [OPT_V_RECOMP] = { { PL_SUB, OPT_V_PIC, 0, "POST PROCESSING" },
-                       /* ASPECT RATIO AND FOV > (night 2026-11-07): the view has nine stock lines, all in use - FIELD
-                        * OF VIEW joins ASPECT RATIO in a sub-list (THPS 2X has it right under ASPECT RATIO) */
-                       { PL_VAL, RV_DISPLAY }, { PL_VAL, RV_RENDER }, { PL_SUB, OPT_V_VIEW, 0, "ASPECT RATIO AND FOV" },
-                       { PL_NONE }, { PL_NONE }, { PL_SUB, OPT_V_FPS, 0, "FRAME RATE" },
+    /* 2026-11-23 (option-c layout): DISPLAY > took DISPLAY MODE, RENDER RESOLUTION and the old ASPECT RATIO AND
+     * FOV sub-list; PERFORMANCE > (was FRAME RATE >) and RENDERING > are new pages */
+    [OPT_V_RECOMP] = { { PL_SUB, OPT_V_PIC, 0, "POST PROCESSING" }, { PL_SUB, OPT_V_VIEW, 0, "DISPLAY" },
+                       { PL_SUB, OPT_V_FPS, 0, "PERFORMANCE" }, { PL_SUB, OPT_V_RENDERING, 0, "RENDERING" },
+                       { PL_NONE }, { PL_NONE }, { PL_NONE },
                        { PL_VAL, RV_LANGUAGE }, { PL_SUB, OPT_V_BOOT, 0, "BOOT ANIMATION" } },
-    [OPT_V_FPS]    = { { PL_VAL, RV_FRAMERATE }, { PL_VAL, RV_PACING }, { PL_VAL, RV_VSYNC }, { PL_VAL, RV_FPSHUD } },
+    [OPT_V_FPS]    = { { PL_VAL, RV_VSYNC }, { PL_VAL, RV_PERF_FPS }, { PL_VAL, RV_PERF_FT }, { PL_VAL, RV_PERF_SPEED } },
+    [OPT_V_RENDERING] = { { PL_VAL, RV_SHADERS }, { PL_VAL, RV_SHNOTICE } },
     [OPT_V_BOOT]   = { { PL_TEXT, 1 }, { PL_VAL, RV_BOOT } },   /* a = 1: the file's status line */
     /* leaving RECOMP OPTIONS with a restart-bound value changed (CLAUDE.md RESTART NEEDED; THPS 2X host_restart) */
     [OPT_V_RESTART] = { { PL_TEXT, 0, 0, "RESTART NEEDED" }, { PL_TEXT, 3, 0, "RESTART NOW" },
                         { PL_TEXT, 4, 0, "LATER" } },
     [OPT_V_PIC]    = { { PL_GAMEF, 0, 0, "BRIGHTNESS" }, { PL_GAMEF, 1, 0, "CONTRAST" }, { PL_VAL, RV_AA },
-                       { PL_VAL, RV_ANISO }, { PL_VAL, RV_BLOOM }, { PL_VAL, RV_BLOOMSTR } },
-    [OPT_V_VIEW]   = { { PL_VAL, RV_ASPECT }, { PL_VAL, RV_FOV } },
+                       { PL_VAL, RV_ANISO }, { PL_VAL, RV_BLOOM }, { PL_VAL, RV_BLOOMSTR }, { PL_VAL, RV_UPSCALE },
+                       { PL_VAL, RV_FSRPRESET }, { PL_VAL, RV_FSRSHARP } },
+    [OPT_V_VIEW]   = { { PL_VAL, RV_DISPLAY }, { PL_VAL, RV_RENDER }, { PL_VAL, RV_ASPECT }, { PL_VAL, RV_FOV } },
     /* SOUND: the game's three volumes (stock lines 3-5) + SPEAKERS on stock line 6 (ANZEIGE SICHTBAR, its value
      * sprites parked) - maintainer 2026-11-07 ~23:45: the 5.1 choice in the game's SOUND options */
     [OPT_V_SOUND]  = { [6] = { PL_VAL, RV_SPEAKERS } },
@@ -1356,14 +1387,83 @@ static int s_dm_session = -1;
 /* FIELD OF VIEW in Orta's angle units (65536 = one turn), -1 = read the setting again (sub_000419A0 below) */
 static int s_fov_units = -1;
 
+/* PERFORMANCE overlay parts (NV2A_VK_PERF_* bits): performance_overlay, else the old fps_counter (fps -> fps,
+ * fps_frametime -> fps + frame time, frametime -> frame time) - docs/recomp_options_layout.md */
+static int perf_mask(void)
+{
+    const char *p = settings_get("performance_overlay", NULL), *o;
+    if (p) return nv2a_vk_perf_overlay_parse(p);
+    o = settings_get("fps_counter", "off");
+    return !strcmp(o, "fps") ? 1 : !strcmp(o, "fps_frametime") ? 3 : !strcmp(o, "frametime") ? 2 : 0;
+}
+static int perf_bit(int id) { return id == RV_PERF_FPS ? 1 : id == RV_PERF_FT ? 2 : 4; }
+static void perf_store(int mask)
+{
+    char v[32] = "";
+    if (mask == 0) snprintf(v, sizeof v, "off");
+    else if (mask == 7) snprintf(v, sizeof v, "all");
+    else snprintf(v, sizeof v, "%s%s%s%s%s", mask & 1 ? "fps" : "", (mask & 1) && (mask & 6) ? "+" : "",
+                  mask & 2 ? "frametime" : "", (mask & 2) && (mask & 4) ? "+" : "", mask & 4 ? "speed" : "");
+    settings_set("performance_overlay", v);
+}
+
+/* SHADER COMPILE's default = the toolkit's mode before the port set one (HYBRID Windows / Linux, WAIT Android, or
+ * RECOMP_VK_ASYNC): taken once in orta_options_apply - after a set, nv2a_vk_get_async_mode answers the set value, so
+ * Y stayed on the last choice (run 20261123_171310_options_pages) */
+static int rv_shaders_default(void)
+{
+    static int s_def = -1;
+    if (s_def < 0) { int m = nv2a_vk_get_async_mode(); s_def = m >= 0 && m <= 3 ? m : 3; }
+    return s_def;
+}
+
 static int rv_index(int id)
 {
     if (id == RV_DISPLAY && s_dm_session >= 0) return s_dm_session;
-    const char *cur = settings_get(k_rv[id].key, k_rv[id].def);
+    if (id == RV_PERF_FPS || id == RV_PERF_FT || id == RV_PERF_SPEED) return (perf_mask() & perf_bit(id)) != 0;
+    if (id == RV_SHADERS && !settings_get(k_rv[id].key, NULL)) {   /* unset: the toolkit's default (or env) */
+        return rv_shaders_default();
+    }
+    const char *cur = settings_get(k_rv[id].key, k_rv[id].def ? k_rv[id].def : "");
     int i;
     for (i = 0; i < k_rv[id].n; i++) if (!strcmp(cur, k_rv[id].val[i])) return i;
-    for (i = 0; i < k_rv[id].n; i++) if (!strcmp(k_rv[id].def, k_rv[id].val[i])) return i;
+    for (i = 0; k_rv[id].def && i < k_rv[id].n; i++) if (!strcmp(k_rv[id].def, k_rv[id].val[i])) return i;
     return 0;
+}
+
+/* value i of line id into the settings file (the PERFORMANCE switches share one key) */
+static void rv_store(int id, int i)
+{
+    if (id == RV_PERF_FPS || id == RV_PERF_FT || id == RV_PERF_SPEED) {
+        int m = perf_mask();
+        perf_store(i ? (m | perf_bit(id)) : (m & ~perf_bit(id)));
+        return;
+    }
+    settings_set(k_rv[id].key, k_rv[id].val[i]);
+}
+
+/* 1 when line id is at its default; rv_store_default puts it there (SHADER COMPILE: the key goes) */
+static int rv_is_default(int id)
+{
+    if (id == RV_SHADERS) return settings_get(k_rv[id].key, NULL) == NULL;
+    if (id == RV_PERF_FPS || id == RV_PERF_FT || id == RV_PERF_SPEED) return rv_index(id) == 0;
+    return !strcmp(settings_get(k_rv[id].key, k_rv[id].def), k_rv[id].def);
+}
+static void rv_store_default(int id)
+{
+    if (id == RV_SHADERS) { settings_unset(k_rv[id].key); return; }
+    if (id == RV_PERF_FPS || id == RV_PERF_FT || id == RV_PERF_SPEED) { rv_store(id, 0); return; }
+    settings_set(k_rv[id].key, k_rv[id].def);
+}
+
+/* FSR on (UPSCALING): FSR PRESET / FSR SHARPNESS are shown, RENDER RESOLUTION is locked (the preset sets it) */
+static int rv_fsr(void) { return rv_index(RV_UPSCALE) == 1; }
+
+/* the row of a view's line (-1 hidden): k_opt_rows, with the FSR lines only while UPSCALING is FSR */
+static int opt_row(int view, int line)
+{
+    if (view == OPT_V_PIC && (line == 7 || line == 8) && !rv_fsr()) return -1;
+    return k_opt_rows[view][line];
 }
 
 /* RENDER RESOLUTION: 4:3 = 1.00X..5.00X in 0.25 steps; 16:9 = the standard sizes (CLAUDE.md). The aspect is the one
@@ -1425,7 +1525,11 @@ static void rv_apply(int id)
     if (id == RV_DISPLAY) nv2a_vk_set_display_mode(rv_display_mode());
     if (id == RV_ANISO) nv2a_vk_aniso = rv_aniso_level();
     if (id == RV_AA) nv2a_vk_set_antialiasing(rv_index(RV_AA));
-    if (id == RV_FPSHUD) nv2a_vk_set_fps_hud(rv_index(RV_FPSHUD));
+    if (id == RV_PERF_FPS || id == RV_PERF_FT || id == RV_PERF_SPEED) nv2a_vk_set_perf_overlay(perf_mask());
+    if (id == RV_UPSCALE || id == RV_FSRPRESET || id == RV_FSRSHARP)
+        nv2a_vk_set_upscaling(rv_fsr(), rv_index(RV_FSRPRESET), rv_index(RV_FSRSHARP));
+    if (id == RV_SHADERS) nv2a_vk_set_async_mode(rv_index(RV_SHADERS));
+    if (id == RV_SHNOTICE) nv2a_vk_set_shader_notice(rv_index(RV_SHNOTICE) == 0);
     if (id == RV_BLOOM || id == RV_BLOOMSTR)
         nv2a_vk_set_bloom(rv_index(RV_BLOOM) ? rv_index(RV_BLOOMSTR) + 1 : 0);
     if (id == RV_FOV) s_fov_units = -1;          /* the camera call picks the new value up (at once) */
@@ -1457,6 +1561,19 @@ static void rv_text(int view, int line, char *out, size_t n)
         return;
     }
     if (id < 0) { snprintf(out, n, "%s", pl && pl->text ? pl->text : ""); return; }
+    if (id == RV_FSRPRESET || id == RV_FSRSHARP) {
+        /* all values side by side (layout doc); the chosen one in the font's big capitals (opt_line_text keeps
+         * the letters between two '\1' upper case), the others in the small capitals of every label. Values only:
+         * with the label "FSR PRESET: ..." / "FSR SHARPNESS: ..." both lines ran off the right edge (run
+         * 20261123_171310_options_pages shot 06); the help box names the line. */
+        size_t k = 0;
+        int i, cur = rv_index(id);
+        out[0] = 0;
+        for (i = 0; i < k_rv[id].n && k < n; i++)
+            k += (size_t)snprintf(out + k, n - k, i == cur ? "%s\1%s\1" : "%s%s", i ? " " : "", k_rv[id].txt[i]);
+        return;
+    }
+    if (id == RV_RENDER && rv_fsr()) { snprintf(out, n, "%s: FSR", k_rv[id].label); return; }
     if (id == RV_RENDER) {
         /* the resolution only, no factor (maintainer 2026-11-04 15:00): 4:3 = 640 x 480 times the factor, 16:9 =
          * the standard sizes (lines x 16/9) */
@@ -1494,6 +1611,7 @@ static int rv_step(int view, int line, int dir)
         return 1;
     }
     if (id < 0) return 0;
+    if (id == RV_RENDER && rv_fsr()) return 0;                   /* locked: the FSR preset sets the resolution */
     if (id == RV_RENDER) {
         int ws = rv_ws_menu(), s = rv_render_step(ws, NULL) + dir;
         char v[16];
@@ -1508,7 +1626,7 @@ static int rv_step(int view, int line, int dir)
     if (i < 0 || i >= k_rv[id].n) return 0;                     /* ends stop, as the stock value lines */
     if (id == RV_AA && !nv2a_vk_antialiasing_fits(i)) return 0; /* refused: the device cannot hold it */
     if (id == RV_DISPLAY) s_dm_session = -1;                     /* the player's choice from now on */
-    settings_set(k_rv[id].key, k_rv[id].val[i]);
+    rv_store(id, i);
     rv_apply(id);
     return 1;
 }
@@ -1524,6 +1642,7 @@ static int rv_default(int view, int line)
         return 1;
     }
     if (id < 0) return 0;
+    if (id == RV_RENDER && rv_fsr()) return 0;
     if (id == RV_RENDER) {
         int ws = rv_ws_menu();
         if (rv_render_step(ws, NULL) == 0) return 0;
@@ -1537,8 +1656,8 @@ static int rv_default(int view, int line)
         rv_apply(id);
         return 1;
     }
-    if (!strcmp(settings_get(k_rv[id].key, k_rv[id].def), k_rv[id].def)) return 0;
-    settings_set(k_rv[id].key, k_rv[id].def);
+    if (rv_is_default(id)) return 0;
+    rv_store_default(id);
     rv_apply(id);
     return 1;
 }
@@ -1565,7 +1684,6 @@ void orta_options_apply(void)
     s_rv_start[RV_ASPECT] = rv_index(RV_ASPECT);
     s_rv_start[RV_LANGUAGE] = rv_index(RV_LANGUAGE);
     s_rv_start[RV_VSYNC] = rv_index(RV_VSYNC);
-    s_rv_start[RV_PACING] = rv_index(RV_PACING);
     s_rv_start[RV_FRAMERATE] = rv_index(RV_FRAMERATE);
     s_rv_start[RV_SPEAKERS] = rv_index(RV_SPEAKERS);
     {
@@ -1590,20 +1708,28 @@ void orta_options_apply(void)
     rv_apply(RV_DISPLAY);
     rv_apply(RV_ANISO);
     rv_apply(RV_AA);
-    rv_apply(RV_FPSHUD);
+    rv_apply(RV_PERF_FPS);                       /* all three parts at once */
     rv_apply(RV_BLOOM);
+    rv_apply(RV_UPSCALE);
+    rv_apply(RV_SHNOTICE);
+    (void)rv_shaders_default();                  /* the toolkit's default, read before any set (Y goes back to it) */
+    if (settings_get(k_rv[RV_SHADERS].key, NULL)) rv_apply(RV_SHADERS);   /* unset: nothing set, the toolkit's own */
     rv_apply(RV_MENUBTN);
     fprintf(stderr, "[OPT] menu buttons %s\n", k_rv[RV_MENUBTN].val[rv_index(RV_MENUBTN)]);
     fprintf(stderr, "[OPT] options: display %s, render scale %s, aspect %s, anisotropic filter %dx, antialiasing %s, "
-            "fps counter %s, vsync %s, language %s, frame pacing %s, field of view %s, frame rate %s, speakers %s, "
-            "bloom %s, bloom strength %s\n",
+            "performance overlay %d, vsync %s, language %s, field of view %s, frame rate %s, speakers %s, "
+            "bloom %s, bloom strength %s, upscaling %s (%s, %s), shader compile %s%s, "
+            "shader notice %s\n",
             k_rv[RV_DISPLAY].val[rv_index(RV_DISPLAY)], saved ? settings_get(rv_render_key(ws), "") : "default",
             k_rv[RV_ASPECT].val[rv_index(RV_ASPECT)], nv2a_vk_aniso, k_rv[RV_AA].val[rv_index(RV_AA)],
-            k_rv[RV_FPSHUD].val[rv_index(RV_FPSHUD)], k_rv[RV_VSYNC].val[rv_index(RV_VSYNC)],
-            k_rv[RV_LANGUAGE].val[rv_index(RV_LANGUAGE)], k_rv[RV_PACING].val[rv_index(RV_PACING)],
+            perf_mask(), k_rv[RV_VSYNC].val[rv_index(RV_VSYNC)],
+            k_rv[RV_LANGUAGE].val[rv_index(RV_LANGUAGE)],
             k_rv[RV_FOV].val[rv_index(RV_FOV)], k_rv[RV_FRAMERATE].val[rv_index(RV_FRAMERATE)],
             k_rv[RV_SPEAKERS].val[rv_index(RV_SPEAKERS)], k_rv[RV_BLOOM].val[rv_index(RV_BLOOM)],
-            k_rv[RV_BLOOMSTR].val[rv_index(RV_BLOOMSTR)]);
+            k_rv[RV_BLOOMSTR].val[rv_index(RV_BLOOMSTR)], k_rv[RV_UPSCALE].val[rv_index(RV_UPSCALE)],
+            k_rv[RV_FSRPRESET].val[rv_index(RV_FSRPRESET)], k_rv[RV_FSRSHARP].val[rv_index(RV_FSRSHARP)],
+            k_rv[RV_SHADERS].val[rv_index(RV_SHADERS)],
+            settings_get(k_rv[RV_SHADERS].key, NULL) ? "" : " (default)", k_rv[RV_SHNOTICE].val[rv_index(RV_SHNOTICE)]);
 }
 
 /* ── Debug: the dragon object over time (2026-11-07; finding the special gauge for the debug cheats) ─────
@@ -1777,8 +1903,8 @@ void orta_diag_player_start_ext(void) { orta_diag_player_start(); }
  * keeps flying the dragon after it as after the stick.
  * The finger's place is a point in the frame; the cursor -> screen mapping is not linear (the camera follows the
  * cursor), so a small loop moves the cursor until +0x0B8 / +0x0BC sit under the finger: about 3.5 px per cursor unit
- * in x, 1.8 in y, half the error per game frame (a few frames to settle). Only while flying: the section frame counter
- * +0x06C must run (it stands still in menus, pause, cut scenes) - orta_touch_aim(-1, ...) tells the caller so, and the
+ * in x, 1.8 in y, half the error per game frame (a few frames to settle). Only while flying: the dragon's forward
+ * position +0x0D0 must move (it stands still in menus and the pause) - orta_touch_aim(-1, ...) tells the caller so, and the
  * Android overlay switches between its normal and its aiming layout on that.
  * orta_touch_aim(down, x, y, w, h): x / y the finger in a w x h window (any unit); down 1 = aim there, 0 = finger up;
  * returns 1 while aiming is possible. Any thread; the guest writes happen on one host thread of their own. */
@@ -1797,25 +1923,69 @@ static int orta_aim_dragon(uint32_t *p_out)
 }
 
 static float aim_f(uint32_t va) { uint32_t w = GUEST32(va); float f; memcpy(&f, &w, 4); return f; }
+/* Touch aiming's soft edge (maintainer 2026-11-19, "option 3"): the reticle reaches only the middle of the frame (about
+ * x 130-510, y 85-280 of 640x480 - the camera follows the cursor, and the cursor stops at +-44), so a finger nearer
+ * the screen edge hit a hard stop. v (frame units, lo..hi) is kept 1:1 up to 70 % of the reach r around the centre c;
+ * beyond it the rest of the way to the screen edge is squeezed into the rest of the reach by 1 - (1 - t)^n, n chosen
+ * so that the slope stays 1 at the knee (no kink) and falls to 0 at the edge: the finger at the edge = the reticle at
+ * the edge of its reach. */
+static float aim_soft(float v, float c, float r, float lo, float hi)
+{
+    float d = v - c, a = d < 0.0f ? -d : d, e = d < 0.0f ? c - lo : hi - c, k = 0.7f * r, t, o;
+    if (e <= r || a <= k) return v;
+    t = (a - k) / (e - k);
+    t = t > 1.0f ? 1.0f : t;
+    o = k + (r - k) * (1.0f - powf(1.0f - t, (e - k) / (r - k)));
+    return c + (d < 0.0f ? -o : o);
+}
+
 static void aim_set(uint32_t va, float f) { uint32_t w; memcpy(&w, &f, 4); GUEST32(va) = w; }
 
 static int SDLCALL orta_aim_thread(void *unused)
 {
-    uint32_t last_sec = 0, last_change = 0;
+    uint32_t last_sec = 0, last_change = 0, last_log = 0;
     float last_sx = -1.0f, last_sy = -1.0f;
+    int was_live = -1, was_down = 0;
+    float last_cx = -1000.0f, last_base = -1000.0f;  /* our last x write; the view centre last logged */
+    uint32_t turn_until = 0, last_view = 0xFFFFFFFFu;
     (void)unused;
     for (;;) {
         uint32_t p, now = (uint32_t)SDL_GetTicks();
         SDL_Delay(4);
-        if (!orta_aim_dragon(&p)) { SDL_SetAtomicInt(&s_aim_live, 0); continue; }
-        {
-            uint32_t sec = GUEST32(p + 0x06Cu);
-            if (sec != last_sec) { last_sec = sec; last_change = now; }
-            SDL_SetAtomicInt(&s_aim_live, now - last_change < 150u);
+        /* the Android overlay asks from the game's first moment on, before the guest memory is mapped: a read then
+         * faulted at 0x474230 and the toolkit's crash handler ended this thread (S23, 2026-11-13 run aim2). The offset
+         * is never 0 on Android / Linux (the guest RAM is mapped elsewhere); a host that maps it at the original base
+         * would need another ready check here. */
+        if (!g_xbox_mem_offset) { SDL_Delay(100); continue; }
+        if (!orta_aim_dragon(&p)) {
+            SDL_SetAtomicInt(&s_aim_live, 0);
+            if (was_live != 0) { was_live = 0; fprintf(stderr, "[AIM] no dragon (0x%08X)\n", GUEST32(0x474230u)); }
+            continue;
         }
-        if (!SDL_GetAtomicInt(&s_aim_live) || !SDL_GetAtomicInt(&s_aim_down)) continue;
         {
-            float fx, fy, w, h, a, rx, ry, rw, rh, tx, ty, sx, sy, cx, cy;
+            /* flying = the dragon's forward position +0x0D0 moved within the last second (it climbs ~80 a second in
+             * flight on rails; menus, the pause and the score screen freeze it). The section counter +0x06C first
+             * used here stood still for whole stretches of level 1 on the S23 (run aim4) - no aiming layout there. */
+            uint32_t sec = GUEST32(p + 0x0D0u);
+            int live;
+            if (sec != last_sec) { last_sec = sec; last_change = now; }
+            live = now - last_change < 1000u;
+            SDL_SetAtomicInt(&s_aim_live, live);
+            if (live != was_live) {
+                was_live = live;
+                fprintf(stderr, "[AIM] in flight: %s (dragon 0x%08X, form %u, position %.1f)\n", live ? "yes" : "no",
+                        p, GUEST32(p + 0x01Cu), aim_f(p + 0x0D0u));
+            }
+        }
+        if (SDL_GetAtomicInt(&s_aim_down) != was_down) {
+            was_down = !was_down;
+            fprintf(stderr, "[AIM] finger %s\n", was_down ? "down" : "up");
+            last_cx = -1000.0f;                          /* a turn without the finger is no turn to wait for */
+        }
+        if (!SDL_GetAtomicInt(&s_aim_down)) continue;    /* a finger already down keeps aiming (dragon checked above) */
+        {
+            float fx, fy, w, h, a, rx, ry, rw, rh, tx, ty, sx, sy, cx, cy, base, fc;
+            uint32_t view;
             SDL_LockMutex(s_aim_mx);
             fx = s_aim_fx; fy = s_aim_fy; w = s_aim_w; h = s_aim_h;
             SDL_UnlockMutex(s_aim_mx);
@@ -1831,18 +2001,58 @@ static int SDLCALL orta_aim_thread(void *unused)
             tx = (fx - rx) / rw * 640.0f; ty = (fy - ry) / rh * 480.0f;
             tx = tx < 0.0f ? 0.0f : tx > 640.0f ? 640.0f : tx;
             ty = ty < 0.0f ? 0.0f : ty > 480.0f ? 480.0f : ty;
+            tx = aim_soft(tx, 320.0f, 190.0f, 0.0f, 640.0f);
+            ty = aim_soft(ty, 185.0f, 100.0f, 0.0f, 480.0f);
+            /* the view (LT / RT turn it by 90 degrees): the cursor x +0x0FC is an absolute angle around the view's
+             * centre (front 0, right 90, back 180 or -180, left 270 or -90) - a clamp around 0 pulled every marking in a
+             * turned view back to the front (S23, maintainer). The centre is the multiple of 90 nearest to the cursor:
+             * the cursor stays within +-44 of it, so the rounding is unique. +0x3D8 (taken for a view index in aim7)
+             * read 1 in the right AND the back view (S23 run aim7, 2026-11-18): the back view was clamped to 46..134 and
+             * the reticle stuck on its left side; it is only logged now.
+             * A turn: the game moves +0x0FC itself (not to our last write) - x is left alone until it stands still. */
+            view = GUEST32(p + 0x3D8u);
+            fc = aim_f(p + 0x0FCu);
+            if (last_cx > -999.0f && fabsf(fc - last_cx) > 8.0f) turn_until = now + 250u;
+            base = 90.0f * roundf(fc / 90.0f);
+            if (base != last_base || view != last_view) {
+                last_base = base; last_view = view;
+                fprintf(stderr, "[AIM] view centre %.0f (cursor x %.1f, +0x3D8 %u)\n", base, fc, view);
+            }
             sx = aim_f(p + 0x0B8u); sy = aim_f(p + 0x0BCu);
-            if (!(sx == sx) || !(sy == sy)) continue;
-            /* one step per game frame: the screen position must have been worked out again since the last step */
-            if (sx == last_sx && sy == last_sy) continue;
-            last_sx = sx; last_sy = sy;
-            cx = aim_f(p + 0x0FCu) + 0.5f * (tx - sx) / 3.5f;
-            cy = aim_f(p + 0x0F8u) + 0.5f * (ty - sy) / 1.8f;
-            cx = cx < -50.0f ? -50.0f : cx > 50.0f ? 50.0f : cx;
+            if (!(sx >= -100.0f && sx <= 740.0f && sy >= -100.0f && sy <= 580.0f)) {
+                /* no sensible reticle position (NaN, or far off the frame: S23 run aim5 at a level start read
+                 * 1288,14 / -876,69 / 1523,-2953 and the loop threw the cursor from -50 to 50 and back) - set the
+                 * cursor straight from the finger with the CachyOS calibration (frame centre ~320,185; ~3.6 px per
+                 * unit in x, ~1.9 in y) and wait for a real position */
+                cx = base + (tx - 320.0f) / 3.6f;
+                cy = (ty - 185.0f) / 1.9f;
+                last_sx = last_sy = -1.0f;
+            } else {
+                float dx, dy;
+                /* one step per game frame: the screen position must have been worked out again since the last step */
+                if (sx == last_sx && sy == last_sy) continue;
+                last_sx = sx; last_sy = sy;
+                dx = 0.5f * (tx - sx) / 3.5f;
+                dy = 0.5f * (ty - sy) / 1.8f;
+                dx = dx < -12.0f ? -12.0f : dx > 12.0f ? 12.0f : dx;   /* at most ~a quarter of the range a frame */
+                dy = dy < -12.0f ? -12.0f : dy > 12.0f ? 12.0f : dy;
+                cx = fc + dx;
+                cy = aim_f(p + 0x0F8u) + dy;
+            }
+            /* never the x limit: the cursor at +-50 turns the view like LT / RT (maintainer, S23 2026-11-13: the finger
+             * crosses the whole screen, so the view must change only through LT / RT) - kept at +-44 */
+            cx = cx < base - 44.0f ? base - 44.0f : cx > base + 44.0f ? base + 44.0f : cx;
             cy = cy < -50.0f ? -50.0f : cy > 50.0f ? 50.0f : cy;
-            aim_set(p + 0x0FCu, cx);
+            if ((int32_t)(now - turn_until) >= 0) aim_set(p + 0x0FCu, cx);
+            last_cx = aim_f(p + 0x0FCu);
             aim_set(p + 0x0F8u, cy);
             aim_set(p + 0x118u, cy);
+            if (now - last_log >= 250u) {
+                last_log = now;
+                fprintf(stderr, "[AIM] finger %.0f,%.0f of %.0fx%.0f -> frame %.0f,%.0f; reticle %.0f,%.0f; cursor %.1f,%.1f "
+                        "(read back %.1f,%.1f) view %u\n", fx, fy, w, h, tx, ty, sx, sy, cx, cy, aim_f(p + 0x0FCu), aim_f(p + 0x0F8u),
+                        view);
+            }
         }
     }
     return 0;
@@ -2450,9 +2660,15 @@ static void opt_line_text(int line, const char *t)
          * 2026-11-05: "manche sind größer als andere" -> all small, as EXIT GAME in the main menu). Digits, ':' and
          * the rest keep their codes. */
         if (t) {
-            size_t i;
-            for (i = 0; t[i] && i + 1 < sizeof low; i++) low[i] = (t[i] >= 'A' && t[i] <= 'Z') ? (char)(t[i] + 32) : t[i];
-            low[i] = 0;
+            /* '\1' .. '\1' (rv_text: the chosen FSR value among all values) keeps its letters upper case = the big
+             * capitals, the marks themselves are dropped */
+            size_t i, o = 0;
+            int big = 0;
+            for (i = 0; t[i] && o + 1 < sizeof low; i++) {
+                if (t[i] == '\1') { big = !big; continue; }
+                low[o++] = (!big && t[i] >= 'A' && t[i] <= 'Z') ? (char)(t[i] + 32) : t[i];
+            }
+            low[o] = 0;
             s = low;
         }
         if (!t) {
@@ -2480,7 +2696,7 @@ static void opt_layout(int view)
         if (s_opt_vrow[line] < 40) { moved += opt_shift_line(line, s_opt_vrow[line], 60 + line, OPT_MV_VALUE); s_opt_vrow[line] = 60 + line; }
     }
     for (line = 0; line < 9; line++) {                       /* 2: the view's lines to their rows, texts */
-        int row = k_opt_rows[view][line];
+        int row = opt_row(view, line);
         char buf[48];
         const char *t = opt_view_text(view, line, buf, sizeof buf);
         if (row < 0) { s_opt_hidden |= 1u << line; continue; }
@@ -2494,10 +2710,10 @@ static void opt_layout(int view)
     }
     {
         static const char *const k_name[OPT_V_N] = { "TOP", "CONTROLS", "SOUND", "RECOMP", "RECOMP > ANTIALIASING",
-                                                     "RECOMP > FRAME RATE", "RECOMP > BOOT ANIMATION",
+                                                     "RECOMP > PERFORMANCE", "RECOMP > BOOT ANIMATION",
                                                      "CONTROLS > BUTTON MAPPING", "RESTART NEEDED",
-                                                     "RECOMP > BRIGHTNESS AND CONTRAST",
-                                                     "RECOMP > ASPECT RATIO AND FOV" };
+                                                     "RECOMP > POST PROCESSING", "RECOMP > DISPLAY",
+                                                     "RECOMP > RENDERING" };
         fprintf(stderr, "[OPT] view %s: %d position words moved\n", k_name[view], moved);
     }
 }
@@ -2508,7 +2724,7 @@ static void opt_view_texts(int view)
     int line;
     for (line = 0; line < 9; line++) {
         char buf[48];
-        if (k_opt_rows[view][line] < 0) continue;
+        if (opt_row(view, line) < 0) continue;
         opt_line_text(line, opt_view_text(view, line, buf, sizeof buf));
     }
 }
@@ -2641,24 +2857,30 @@ static uint32_t opt_guest_call(X86Ctx *ctx, uint8_t *base, void (*fn)(RECOMP_PAR
 static const char *opt_help_for(int view, uint32_t line)
 {
     static const char *const k_recomp[9] = {        /* = the k_pl[OPT_V_RECOMP] order */
-        "Brightness, contrast, edge smoothing,\ntexture filter and bloom.\nPress A to open.",
-        "Fullscreen, borderless or windowed.\nLeft or right to change, Y for the default.\nApplies at once.",
-        "The game's 480 lines times this factor.\nLeft or right to change, Y for the default.\nAt once; a new aspect ratio after restart.",
-        "Aspect ratio and field of view.\nPress A to open.",
-        NULL, NULL,                                 /* lines 4 / 5 hidden (in POST PROCESSING) */
-        "Frame rate, VSync and FPS counter.\nPress A to open.",
+        "Brightness, contrast, edge smoothing,\ntexture filter, bloom and upscaling.\nPress A to open.",
+#ifdef __ANDROID__
+        "Render resolution, aspect ratio\nand field of view.\nPress A to open.",
+#else
+        "Display mode, render resolution,\naspect ratio and field of view.\nPress A to open.",
+#endif
+        "VSync and the on-screen counters:\nframes per second, frame time, game speed.\nPress A to open.",
+        "How new shaders are built while you play.\nPress A to open.",
+        NULL, NULL, NULL,                           /* lines 4 / 5 / 6 hidden */
         "Game language. SYSTEM follows Windows.\nLeft or right to change, Y for the default.\nNeeds a restart.",
         "Boot animation from media\\boot.mpg.\nPress A to open.",
     };
     static const char *const k_fps[4] = {
-        "ORIGINAL 60 as the console.\n120 follows once the game logic runs apart from it.",
-        "DISPLAY: even frames on 120/180/240 Hz.\nTIMER: the old 60 Hz clock.\nLeft or right, Y for the default. Needs a restart.",
         "Waits for the display.\nLeft or right to change, Y for the default.\nNeeds a restart.",
-        "Frames per second and frame time on screen.\nLeft or right to change, Y for the default.\nApplies at once.",
+        "Frames per second on screen.\nLeft or right to change, Y for the default.\nApplies at once.",
+        "The time of each frame on screen.\nLeft or right to change, Y for the default.\nApplies at once.",
+        "The game's speed in percent on screen,\n100 = as fast as the console.\nLeft or right, Y for the default. At once.",
     };
     if (line > 8) return NULL;
     if (view == OPT_V_RECOMP) return k_recomp[line];
     if (view == OPT_V_FPS && line < 4) return k_fps[line];
+    if (view == OPT_V_RENDERING)
+        return line == 0 ? "HYBRID: a quick shader until the real one.\nWAIT waits, SKIP leaves the draw out.\nLeft or right, Y for the default. At once."
+                         : "A small notice while shaders are built.\nLeft or right to change, Y for the default.\nApplies at once.";
     if (view == OPT_V_BOOT)
         return "Plays media\\boot.mpg at every start.\nLeft or right to change, Y for the default.\nSee the README.";
     if (view == OPT_V_TOP && line == 0) return "The practice missions: flying, aiming, dragon forms.\nPress A to start.";
@@ -2674,7 +2896,10 @@ static const char *opt_help_for(int view, uint32_t line)
     if (view == OPT_V_CONTROLS && line == 6)
         return "Fixed: in menus A confirms and B cancels,\nwhatever the button mapping says.\nLeft or right to change, Y for the default.";
     if (view == OPT_V_VIEW)
-        return line == 0 ? "4:3 as the original, 16:9, 16:10 or 21:9.\nWider shows more at the sides.\nLeft or right, Y for the default. Needs a restart."
+        return line == 0 ? "Fullscreen, borderless or windowed.\nLeft or right to change, Y for the default.\nApplies at once."
+             : line == 1 ? (rv_fsr() ? "Set by the FSR preset while FSR is on\n(POST PROCESSING > UPSCALING)."
+                                     : "The game's 480 lines times this factor.\nLeft or right to change, Y for the default.\nAt once; a new aspect ratio after restart.")
+             : line == 2 ? "4:3 as the original, 16:9, 16:10 or 21:9.\nWider shows more at the sides.\nLeft or right, Y for the default. Needs a restart."
                          : "Degrees wider than the original camera.\nLeft or right to change, Y for the default.\nApplies at once.";
     if (view == OPT_V_PIC)
         return line == 0 ? "Brightness of the picture.\nLeft or right to change, Y for the default.\nApplies at once."
@@ -2683,6 +2908,9 @@ static const char *opt_help_for(int view, uint32_t line)
              : line == 3 ? "Sharper textures seen at an angle.\nLeft or right to change, Y for the default.\nApplies at once."
              : line == 4 ? "A glow around bright light, not on the console.\nLeft or right to change, Y for the default.\nApplies at once."
              : line == 5 ? "How strong the glow is, 1 to 10.\nLeft or right to change, Y for the default.\nApplies at once."
+             : line == 6 ? "BILINEAR as before, or AMD FSR 1.0:\na lower resolution, sharply scaled up.\nLeft or right, Y for the default. At once."
+             : line == 7 ? "FSR PRESET: QUALITY the highest resolution,\nPERFORMANCE the fastest.\nLeft or right, Y for the default. At once."
+             : line == 8 ? "FSR SHARPNESS: how much FSR sharpens.\nLeft or right to change, Y for the default.\nApplies at once."
                          : NULL;
     if (view == OPT_V_RESTART)
         return line == 1 ? "Restarts the game with the new settings.\nUnsaved progress is lost."
@@ -2776,7 +3004,8 @@ void sub_000AF580(RECOMP_PARAMS)
     }
     if ((bits & 0x8u) && opt_port_line(s_opt_view, (int)cur)) {   /* Y (0x00000008, run _094159_opt_views16): default */
         if (rv_default(s_opt_view, (int)cur)) {
-            opt_view_texts(s_opt_view);
+            if (s_opt_view == OPT_V_PIC) opt_layout(s_opt_view);   /* UPSCALING back to BILINEAR hides the FSR lines */
+            else opt_view_texts(s_opt_view);
             fprintf(stderr, "[OPT] view %d line %u: default\n", s_opt_view, cur);
         }
     }
@@ -2841,7 +3070,9 @@ void sub_000AF580(RECOMP_PARAMS)
             char buf[48];
             const opt_pl_t *spl = opt_pl(s_opt_view, (int)cur);
             rv_text(s_opt_view, (int)cur, buf, sizeof buf);
-            if (spl && spl->kind == PL_VAL && spl->a == RV_ASPECT)
+            if (spl && spl->kind == PL_VAL && spl->a == RV_UPSCALE)
+                opt_layout(s_opt_view);                       /* FSR PRESET / FSR SHARPNESS appear or go */
+            else if (spl && spl->kind == PL_VAL && spl->a == RV_ASPECT)
                 opt_view_texts(s_opt_view);                   /* RENDER RESOLUTION lists the new aspect's sizes */
             else
                 opt_line_text((int)cur, buf);                 /* SetText on its instances at the next call */

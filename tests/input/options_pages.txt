@@ -1,0 +1,71 @@
+# options_pages.txt - Orta (PAL) RECOMP OPTIONS pages of the option-c November layout (2026-11-23): boot -> title ->
+# START -> main menu -> OPTIONEN, TOP down x4 (RECOMP OPTIONS) -> A: shot of RECOMP (POST PROCESSING, DISPLAY,
+# PERFORMANCE, RENDERING, LANGUAGE, BOOT ANIMATION) -> POST PROCESSING: down x6 to UPSCALING, right = FSR (FSR PRESET /
+# FSR SHARPNESS appear), down + right on both, left back to BILINEAR (the two lines go) -> B, down: DISPLAY (RENDER
+# RESOLUTION "FSR" while FSR was on - here BILINEAR again) -> B, down: PERFORMANCE, right on GAME SPEED (overlay) ->
+# B, down: RENDERING. Shots = surface dumps before the present (menu texts, not the overlays).
+39000:start:200
+45000:down:200
+47000:down:200
+52000:a:200
+56000:down:200
+58000:down:200
+60000:down:200
+61500:down:200
+63000:a:200
+70000:shot=01_recomp
+72000:a:200
+78000:shot=02_post
+80000:down:200
+81000:down:200
+82000:down:200
+83000:down:200
+84000:down:200
+85000:down:200
+87000:shot=03_on_upscaling
+88000:right:200
+91000:shot=04_fsr_on
+92000:down:200
+93000:right:200
+95000:shot=05_preset_balanced
+96000:down:200
+97000:left:200
+99000:shot=06_sharp_medium
+100000:b:200
+103000:down:200
+104000:a:200
+108000:shot=07_display_fsr
+109000:b:200
+112000:up:200
+113000:a:200
+116000:down:200
+117000:down:200
+118000:down:200
+119000:down:200
+120000:down:200
+121000:down:200
+122000:left:200
+125000:shot=08_post_bilinear
+126000:b:200
+129000:down:200
+130000:a:200
+134000:shot=09_display_bilinear
+135000:b:200
+138000:down:200
+139000:a:200
+143000:shot=10_performance
+144000:down:200
+145000:down:200
+146000:down:200
+147000:right:200
+150000:shot=11_game_speed_on
+151000:b:200
+154000:down:200
+155000:a:200
+159000:shot=12_rendering
+160000:left:200
+162000:shot=13_shaders_wait
+163000:y:200
+165000:shot=14_shaders_default
+166000:b:200
+170000:shot=15_back_recomp

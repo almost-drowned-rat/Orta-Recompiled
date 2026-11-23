@@ -21,4 +21,7 @@ const char *settings_get(const char *key, const char *def);
 /* Sets and writes the file at once (no-op when the value is unchanged). */
 void        settings_set(const char *key, const char *value);
 
+/* Remove the key from the file (unset = the default again). */
+void        settings_unset(const char *key);
+
 #endif
