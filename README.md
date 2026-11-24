@@ -20,7 +20,7 @@ settings menu inside the game.
 > A = confirm / B = cancel in menus; since v1.1.1 MSAA on the whole 3D scene and an optional **bloom** in
 > **POST PROCESSING**; since v1.1.0 also on **Linux** (AppImage or `.tar.gz`). Playable from the first episode to the
 > end credits - I played it through myself. If you still find a bug, please report it as an issue, I will try to fix each one as fast as I can.
-> **Android:** the same version as an app of its own - [Orta Recompiled for Android](https://github.com/almost-drowned-rat/Orta-Recompiled-Android)
+> **Android:** an app of its own, with its own version numbers - [Orta Recompiled for Android](https://github.com/almost-drowned-rat/Orta-Recompiled-Android)
 > ([download](https://github.com/almost-drowned-rat/Orta-Recompiled-Android/releases/latest)).
 
 ---

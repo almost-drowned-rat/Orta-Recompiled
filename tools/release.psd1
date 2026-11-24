@@ -19,8 +19,10 @@
     Data          = @("assets\pipelist_orta_pal.bin")
     ZipPrefix     = "Orta-Recompiled"
     Readme        = "tools\release_readme.txt"
+    # RecompLauncher's manifest, at the top of the zip next to the launcher (maintainer 2026-11-24: in every release)
+    RecompLauncher = "recomplauncher.json"
     # the LGPL source bundle (licence option C) from a clone of the public toolkit xboxrecomp-option-c at the release
     # tag (beside the toolkit worktree, see tools\paths.ps1's layout)
     PublicToolkit = "..\..\..\tools\xboxrecomp_option_c_public"
-    PublicTag     = "v1.3.0"
+    PublicTag     = "v1.3.1"
 }
