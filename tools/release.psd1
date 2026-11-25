@@ -24,5 +24,5 @@
     # the LGPL source bundle (licence option C) from a clone of the public toolkit xboxrecomp-option-c at the release
     # tag (beside the toolkit worktree, see tools\paths.ps1's layout)
     PublicToolkit = "..\..\..\tools\xboxrecomp_option_c_public"
-    PublicTag     = "v1.3.1"
+    PublicTag     = "v1.3.2"
 }
